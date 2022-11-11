@@ -1336,6 +1336,146 @@ def PrepJMECustomNanoAOD(process,runOnMC):
   if runOnMC:
     process.genWeightsTable.keepAllPSWeights = True
 
+ #############################################################################################
+   #
+   # Add a separate triggerObject tables for Jets and FatJets
+   # Only the single AK4/AK8 jet trigger paths are considered at the moment
+   #
+   #
+   #############################################################################################
+   process.trigObjJMEAK4Table = copy.deepcopy(process.triggerObjectTable)
+   process.trigObjJMEAK4Table.name = "TrigObjJMEAK4"
+   process.trigObjJMEAK4Table.selections = cms.VPSet(
+     cms.PSet(
+       name = cms.string("Jet"),
+       id = cms.int32(1),
+       #### sel = cms.string("( type(0) || type(85) || type(86) || type(-99) ) && (coll('hltPFJetsCorrectedMatchedToCalo*Jets*') && (!coll('hltPFJetsCorrectedMatchedToCalo*Jets*AK8')))"), 
+       sel = cms.string("( type(0) || type(85) || type(-99) )"), 
+       l1seed = cms.string("type(-99)"), l1deltaR = cms.double(0.3),
+       l2seed = cms.string("type(85) || type(86) || type(-99)"),  l2deltaR = cms.double(0.3),
+       skipObjectsNotPassingQualityBits = cms.bool(True),
+       # qualityBits = cms.string(
+       #   "1 * filter('hltSinglePFJet*') + " \
+       #   "2 * filter('hltSinglePFFwdJet*')"
+       #   # "1 * path('HLT_PFJet*') + " \
+       #   # "2 * path('HLT_PFJetFwdX*')"
+       # ), 
+       # qualityBitsDoc = cms.string(
+       #   "bit 1 is HLT_PFJetX, " \
+       #   "bit 2 is HLT_PFJetFwdX"
+       # ), 
+       qualityBits = cms.string(
+           "1       * filter('hltSinglePFJet40') + " \
+           "2       * filter('hltSinglePFJet60') + " \
+           "4       * filter('hltSinglePFJet80') + " \
+           "8       * filter('hltSinglePFJet110') + " \
+           "16      * filter('hltSinglePFJet140') + " \
+           "32      * filter('hltSinglePFJet200') + " \
+           "64      * filter('hltSinglePFJet260') + " \
+           "128     * filter('hltSinglePFJet320') + " \
+           "256     * filter('hltSinglePFJet400') + " \
+           "512     * filter('hltSinglePFJet450') + " \
+           "1024    * filter('hltSinglePFJet500') + " \
+           "2048    * filter('hltSinglePFFwdJet40') + " \
+           "4096    * filter('hltSinglePFFwdJet60') + " \
+           "8196    * filter('hltSinglePFFwdJet80') + " \
+           "16384   * filter('hltSinglePFFwdJet140') + " \
+           "32768   * filter('hltSinglePFFwdJet200') + " \
+           "65536   * filter('hltSinglePFFwdJet260') + " \
+           "131072  * filter('hltSinglePFFwdJet320') + " \
+           "262144  * filter('hltSinglePFFwdJet400') + " \
+           "524288  * filter('hltSinglePFFwdJet450') + " \
+           "1048576 * filter('hltSinglePFFwdJet500') "
+       ), 
+       qualityBitsDoc = cms.string(
+         "Jet bit number " \
+         "1: PFJet40," \
+         "2: PFJet60," \
+         "3: PFJet80," \
+         "4: PFJet110," \
+         "5: PFJet140," \
+         "6: PFJet200," \
+         "7: PFJet260," \
+         "8: PFJet320," \
+         "9: PFJet400," \
+         "10: PFJet450," \
+         "11: PFJet500," \
+         "12: PFJetFwd40," \
+         "13: PFJetFwd60," \
+         "14: PFJetFwd80," \
+         "15: PFJetFwd140," \
+         "16: PFJetFwd200," \
+         "17: PFJetFwd260," \
+         "18: PFJetFwd320," \
+         "19: PFJetFwd400," \
+         "20: PFJetFwd450," \
+         "21: PFJetFwd500"
+       ),
+     ),
+   )
+   process.triggerObjectTablesTask.add(process.trigObjJMEAK4Table)
+
+   process.trigObjJMEAK8Table = copy.deepcopy(process.triggerObjectTable)
+   process.trigObjJMEAK8Table.name = "TrigObjJMEAK8"
+   process.trigObjJMEAK8Table.selections = cms.VPSet(
+     cms.PSet(
+       name = cms.string("FatJet"),
+       id = cms.int32(6),
+       sel = cms.string("type(85)"), 
+       l1seed = cms.string("type(-99)"), l1deltaR = cms.double(0.3),
+       l2seed = cms.string("type(85)  && coll('hltAK8CaloJetsCorrectedIDPassed')"),  l2deltaR = cms.double(0.3),
+       skipObjectsNotPassingQualityBits = cms.bool(True),
+       qualityBits = cms.string(
+         "1       * filter('hltSinglePFJet40AK8') + " \
+         "2       * filter('hltSinglePFJet60AK8') + " \
+         "4       * filter('hltSinglePFJet80AK8') + " \
+         "8       * filter('hltSinglePFJet140AK8') + " \
+         "16      * filter('hltSinglePFJet200AK8') + " \
+         "32      * filter('hltSinglePFJet260AK8') + " \
+         "64      * filter('hltSinglePFJet320AK8') + " \
+         "128     * filter('hltSinglePFJet400AK8') + " \
+         "256     * filter('hltSinglePFJet450AK8') + " \
+         "512     * filter('hltSinglePFJet500AK8') + " \
+         "1024    * filter('hltSinglePFJet550AK8') + " \
+         "2048    * filter('hltSinglePFFwdJet40AK8') + " \
+         "4096    * filter('hltSinglePFFwdJet60AK8') + " \
+         "8196    * filter('hltSinglePFFwdJet80AK8') + " \
+         "16384   * filter('hltSinglePFFwdJet140AK8') + " \
+         "32768   * filter('hltSinglePFFwdJet200AK8') + " \
+         "65536   * filter('hltSinglePFFwdJet260AK8') + " \
+         "131072  * filter('hltSinglePFFwdJet320AK8') + " \
+         "262144  * filter('hltSinglePFFwdJet400AK8') + " \
+         "524288  * filter('hltSinglePFFwdJet450AK8') + " \
+         "1048576 * filter('hltSinglePFFwdJet500AK8') "
+       ), 
+       qualityBitsDoc = cms.string(
+         "Jet bit number " \
+         "1: AK8PFJet40," \
+         "2: AK8PFJet60," \
+         "3: AK8PFJet80," \
+         "4: AK8PFJet140," \
+         "5: AK8PFJet200," \
+         "6: AK8PFJet260," \
+         "7: AK8PFJet320," \
+         "8: AK8PFJet400," \
+         "9: AK8PFJet450," \
+         "10: AK8PFJet500," \
+         "11: AK8PFJet550," \
+         "12: AK8PFJetFwd40," \
+         "13: AK8PFJetFwd60," \
+         "14: AK8PFJetFwd80," \
+         "15: AK8PFJetFwd140," \
+         "16: AK8PFJetFwd200," \
+         "17: AK8PFJetFwd260," \
+         "18: AK8PFJetFwd320," \
+         "19: AK8PFJetFwd400," \
+         "20: AK8PFJetFwd450," \
+         "21: AK8PFJetFwd500"
+       ),
+     ),
+   )
+   process.triggerObjectTablesTask.add(process.trigObjJMEAK8Table)
+
   return process
 
 from PhysicsTools.NanoAOD.V10.nano_cff import nanoAOD_customizeV10
