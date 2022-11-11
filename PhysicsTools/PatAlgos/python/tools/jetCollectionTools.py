@@ -297,7 +297,7 @@ class RecoJetAdder(object):
               candName = self.pfLabel,
               vertexName = self.pvLabel,
               clonePackedCands = True,
-              useExistingWeights = True,
+              useExistingWeights = False, #Note: Ensure reclustered Puppi jets uses V16 in 12_4_10.
             )
           )
           self.prerequisites.append(pfCand)
