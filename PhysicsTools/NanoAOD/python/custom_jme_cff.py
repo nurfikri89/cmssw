@@ -156,6 +156,7 @@ PFJETVARS = cms.PSet(P4Vars,
   nConstMuons     = Var("muonMultiplicity()",int,doc="number of muons in the jet"),
   nConstElecs     = Var("electronMultiplicity()",int,doc="number of electrons in the jet"),
   nConstPhotons   = Var("photonMultiplicity()",int,doc="number of photons in the jet"),
+  nConstNeutrals  = Var("neutralMultiplicity()",int,doc="number of neutral candidates in the jet"),
 )
 PUIDVARS = cms.PSet(
   puId_dR2Mean    = Var("?(pt>10)?userFloat('puId_dR2Mean'):-1",float,doc="pT^2-weighted average square distance of jet constituents from the jet axis (PileUp ID BDT input variable)", precision= 6),
@@ -219,7 +220,8 @@ def AddJetID(proc, jetName="", jetSrc="", jetTableName="", jetSequenceName=""):
   Setup modules to calculate PF jet ID
   """
 
-  isPUPPIJet = True if "Puppi" in jetName else False
+  isPUPPIJet = True if "PUPPI" in jetName.upper() else False
+  print("isPUPPIJet = :" +str(isPUPPIJet) + " for collection : "+jetName)
 
   looseJetId = "looseJetId{}".format(jetName)
   setattr(proc, looseJetId, proc.looseJetId.clone(
@@ -486,6 +488,13 @@ def SavePatJets(proc, jetName, payload, patJetFinalColl, jetTablePrefix, jetTabl
     )
   )
 
+  # if jetName == "AK4PFPUPPI":
+  #   from PhysicsTools.PatAlgos.patPuppiJetSpecificProducer_cfi import patPuppiJetSpecificProducer
+  #   setattr(proc, "patPuppiJetSpecificProducer", patPuppiJetSpecificProducer.clone(
+  #       src=cms.InputTag(srcJets)
+  #     )
+  #   )
+
   #
   # Filter jets with pt cut
   #
@@ -525,6 +534,14 @@ def SavePatJets(proc, jetName, payload, patJetFinalColl, jetTablePrefix, jetTabl
     )
   )
   getattr(proc,jetTable).variables.pt.precision=10
+
+  # if jetName == "AK4PFPUPPI":
+  #   getattr(proc,jetTable).variables.puppiMultiplicity = Var("userFloat('patPuppiJetSpecificProducer:puppiMultiplicity')",float, doc="puppiMultiplicity")
+  #   getattr(proc,jetTable).variables.neutralPuppiMultiplicity = Var("userFloat('patPuppiJetSpecificProducer:neutralPuppiMultiplicity')",float, doc="neutralPuppiMultiplicity")
+  #   getattr(proc,jetTable).variables.neutralHadronPuppiMultiplicity = Var("userFloat('patPuppiJetSpecificProducer:neutralHadronPuppiMultiplicity')",float,doc="neutralHadronPuppiMultiplicity")
+  #   getattr(proc,jetTable).variables.photonPuppiMultiplicity = Var("userFloat('patPuppiJetSpecificProducer:photonPuppiMultiplicity')",float, doc="photonPuppiMultiplicity")
+  #   getattr(proc,jetTable).variables.HFHadronPuppiMultiplicity = Var("userFloat('patPuppiJetSpecificProducer:HFHadronPuppiMultiplicity')",float, doc="HFHadronPuppiMultiplicity")
+  #   getattr(proc,jetTable).variables.HFEMPuppiMultiplicity = Var("userFloat('patPuppiJetSpecificProducer:HFEMPuppiMultiplicity')",float, doc="HFEMPuppiMultiplicity")
 
   #
   # Save MC-only jet variables in table

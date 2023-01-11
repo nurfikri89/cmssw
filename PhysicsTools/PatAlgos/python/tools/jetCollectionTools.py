@@ -437,7 +437,24 @@ class RecoJetAdder(object):
         jetCorrections     = jetCorrections,
         btagDiscriminators = bTagDiscriminators,
       )
-
+      #
+      #
+      #
+      #
+      # if jetUpper == "AK4PFPUPPI":
+      #   from PhysicsTools.PatAlgos.patPuppiJetSpecificProducer_cfi import patPuppiJetSpecificProducer
+      #   self.addProcessAndTask(proc, "patPuppiJetSpecificProducer", patPuppiJetSpecificProducer.clone(
+      #       src=cms.InputTag(selectedPatJets)
+      #     )
+      #   )
+      #   getattr(proc,"updatedPatJets{}Final".format(jetUpper)).userData.userFloats.src += [
+      #     'patPuppiJetSpecificProducer:puppiMultiplicity', 
+      #     'patPuppiJetSpecificProducer:neutralPuppiMultiplicity', 
+      #     'patPuppiJetSpecificProducer:neutralHadronPuppiMultiplicity', 
+      #     'patPuppiJetSpecificProducer:photonPuppiMultiplicity', 
+      #     'patPuppiJetSpecificProducer:HFHadronPuppiMultiplicity', 
+      #     'patPuppiJetSpecificProducer:HFEMPuppiMultiplicity'
+      #   ]
       recoJetInfo.patJetFinalCollection = "selectedUpdatedPatJets{}{}".format(jetUpper,"Final")
     else:
       recoJetInfo.patJetFinalCollection = inputCollection
