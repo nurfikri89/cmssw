@@ -152,12 +152,25 @@ def nanoAOD_activateVID(process):
 
     return process
 
+from PhysicsTools.PatAlgos.tools.puppiJetMETReclusteringTools import puppiJetMETReclusterFromMiniAOD
+def nanoAOD_puppiRecluster(process, useExistingWeights=False, runOnMC=True):
+    process = puppiJetMETReclusterFromMiniAOD(process, useExistingWeights, runOnMC)
+    return process
+
+def nanoPuppiReclusterCustomize_MC():
+    process = nanoAOD_puppiRecluster(process, runOnMC=True)
+    return process
+
+def nanoPuppiReclusterCustomize_Data():
+    process = nanoAOD_puppiRecluster(process, runOnMC=False)
+    return process
+
 def nanoAOD_customizeCommon(process):
 
     process = nanoAOD_activateVID(process)
 
     run2_nanoAOD_106Xv2.toModify(
-        nanoAOD_addDeepInfoAK4CHS_switch, nanoAOD_addParticleNet_switch=True, 
+        nanoAOD_addDeepInfoAK4CHS_switch, nanoAOD_addParticleNet_switch=True,
     )
 
     # This function is defined in jetsAK4_Puppi_cff.py
