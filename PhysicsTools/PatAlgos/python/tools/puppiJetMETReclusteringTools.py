@@ -475,7 +475,7 @@ def puppiJetMETReclusterFromMiniAOD(process, useExistingWeights, runOnMC):
   #
   from PhysicsTools.PatUtils.tools.runMETCorrectionsAndUncertainties import runMetCorAndUncFromMiniAOD
   runMetCorAndUncFromMiniAOD(process,
-    isData=False,
+    isData=not(runOnMC),
     metType="Puppi",
     postfix="Puppi",
     jetFlavor="AK4PFPuppi",
