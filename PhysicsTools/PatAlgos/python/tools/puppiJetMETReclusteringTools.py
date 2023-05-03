@@ -33,9 +33,9 @@ def puppiJetMETReclusterFromMiniAOD(process, useExistingWeights, runOnMC):
   #########################
   #
   # Setup puppi weights
-  # Two versions:
-  # - packedpuppi (for jet reclustering)
-  # - puppiNoLep (for MET reclustering)
+  # Two instances of PuppiProducer:
+  # 1) packedpuppi (for jet reclustering)
+  # 2) puppiNoLep (for MET reclustering)
   #
   ########################
   puppiLabel = setupPuppi(process, useExistingWeights)
@@ -88,14 +88,12 @@ def puppiJetMETReclusterFromMiniAOD(process, useExistingWeights, runOnMC):
     genJetCollection   = cms.InputTag(genJetsCollection),
     genParticles       = cms.InputTag(gpLabel),
     jetCorrections     = ('AK4PFPuppi', cms.vstring(["L2Relative", "L3Absolute"]), ''),
+    getJetMCFlavour    = runOnMC
   )
   process.patJetsPuppi.jetChargeSource = cms.InputTag("patJetPuppiCharge")
   process.selectedPatJetsPuppi.cut = cms.string("pt > 10")
-  process.patJetFlavourAssociationPuppi.weights = cms.InputTag(puppiLabel)
-
-  if not runOnMC: #Remove modules for Gen-level object matching
-    process.patJetsPuppi.getJetMCFlavour = False
-    process.patJetsPuppi.addJetFlavourInfo = False
+  if hasattr(process,"patJetFlavourAssociationPuppi"):
+    process.patJetFlavourAssociationPuppi.weights = cms.InputTag(puppiLabel)
 
   #=============================================
   #
@@ -213,6 +211,7 @@ def puppiJetMETReclusterFromMiniAOD(process, useExistingWeights, runOnMC):
     genJetCollection   = cms.InputTag(genJetsCollection),
     genParticles       = cms.InputTag(gpLabel),
     jetCorrections     = ("AK8PFPuppi", cms.vstring(["L2Relative", "L3Absolute"]), "None"),
+    getJetMCFlavour    = runOnMC,
     btagDiscriminators = ([
         # "pfCombinedSecondaryVertexV2BJetTags",
         # "pfCombinedInclusiveSecondaryVertexV2BJetTags",
@@ -225,7 +224,9 @@ def puppiJetMETReclusterFromMiniAOD(process, useExistingWeights, runOnMC):
       ]
     ),
   )
-  process.patJetFlavourAssociationAK8Puppi.weights = cms.InputTag(puppiLabel)
+  if hasattr(process,"patJetFlavourAssociationAK8Puppi"):
+    process.patJetFlavourAssociationAK8Puppi.weights = cms.InputTag(puppiLabel)
+
   process.patJetsAK8Puppi.userData.userFloats.src = [] # start with empty list of user floats
   process.patJetsAK8Puppi.userData.userFloats.src += ["ak8PFJetsPuppiSoftDropMass"]
   process.patJetsAK8Puppi.addTagInfos = cms.bool(False)
@@ -233,10 +234,6 @@ def puppiJetMETReclusterFromMiniAOD(process, useExistingWeights, runOnMC):
   process.selectedPatJetsAK8Puppi.cut = cms.string("pt > 100")
   process.selectedPatJetsAK8Puppi.cutLoose = cms.string("pt > 30")
   process.selectedPatJetsAK8Puppi.nLoose = cms.uint32(3)
-
-  if not runOnMC:
-    process.patJetsAK8Puppi.getJetMCFlavour = False
-    process.patJetsAK8Puppi.addJetFlavourInfo = False
 
   #
   # Add AK8 Njetiness
@@ -295,6 +292,7 @@ def puppiJetMETReclusterFromMiniAOD(process, useExistingWeights, runOnMC):
     fatJets = cms.InputTag("ak8PFJetsPuppi"),               # needed for subjet flavor clustering
     groomedFatJets = cms.InputTag("ak8PFJetsPuppiSoftDrop"), # needed for subjet flavor clustering
     jetCorrections = ("AK4PFPuppi", cms.vstring(["L2Relative", "L3Absolute"]), "None"),
+    getJetMCFlavour = runOnMC,
     btagDiscriminators = [
       "pfDeepCSVJetTags:probb",
       "pfDeepCSVJetTags:probbb",
@@ -302,10 +300,8 @@ def puppiJetMETReclusterFromMiniAOD(process, useExistingWeights, runOnMC):
       # "pfCombinedMVAV2BJetTags"
     ],
   )
-  process.patJetFlavourAssociationAK8PFPuppiSoftDropSubjets.weights = cms.InputTag(puppiLabel)
-  if not runOnMC:
-    process.patJetsAK8PFPuppiSoftDropSubjets.getJetMCFlavour = False
-    process.patJetsAK8PFPuppiSoftDropSubjets.addJetFlavourInfo = False
+  if hasattr(process,"patJetFlavourAssociationAK8PFPuppiSoftDropSubjets"):
+    process.patJetFlavourAssociationAK8PFPuppiSoftDropSubjets.weights = cms.InputTag(puppiLabel)
 
   #=============================================
   #
@@ -476,10 +472,19 @@ def puppiJetMETReclusterFromMiniAOD(process, useExistingWeights, runOnMC):
   from PhysicsTools.PatUtils.tools.runMETCorrectionsAndUncertainties import runMetCorAndUncFromMiniAOD
   runMetCorAndUncFromMiniAOD(process,
     isData=not(runOnMC),
+    jetCollUnskimmed="slimmedJetsPuppi",
     metType="Puppi",
     postfix="Puppi",
     jetFlavor="AK4PFPuppi",
     recoMetFromPFCs=True
   )
+
+  #
+  # Modify JECs when processing real Data
+  # Disable any MC-only features.
+  #
+  if not(runOnMC):
+    from PhysicsTools.PatAlgos.tools.coreTools import runOnData
+    runOnData( process, names=["Jets"], outputModules = [])
 
   return process
