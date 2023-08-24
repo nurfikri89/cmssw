@@ -67,6 +67,13 @@ def puppiJetMETReclusterFromMiniAOD(process, runOnMC, useExistingWeights=False):
     btagDiscriminatorsAK8Subjets=btagDiscriminatorsAK8Subjets
   )
 
+  #
+  # Ensure that the PuppiProducers will recompute the puppi weights
+  # just in case they were overridden beforehand.
+  #
+  process.packedpuppi.useExistingWeights = False
+  process.packedpuppiNoLep.useExistingWeights = False
+
   return process
 
 def puppiJetMETReclusterFromMiniAOD_MC(process):
