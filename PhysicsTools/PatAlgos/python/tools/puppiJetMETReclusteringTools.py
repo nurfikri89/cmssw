@@ -128,7 +128,8 @@ def puppiAK4METReclusterFromMiniAOD(process, runOnMC, useExistingWeights, btagDi
     metType="Puppi",
     postfix="Puppi",
     jetFlavor="AK4PFPuppi",
-    puppiProducerLabel=puppiNoLepLabel,
+    puppiProducerLabel=puppiLabel,
+    puppiProducerForMETLabel=puppiNoLepLabel,
     recoMetFromPFCs=True
   )
 
