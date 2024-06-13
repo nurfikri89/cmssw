@@ -57,6 +57,12 @@ public:
 
   std::unique_ptr<GenJetCollection> outGenJetsPUAll_;
   std::vector<int> outGenJetsPUAllIdx_;
+  // std::unique_ptr<std::vector<math::XYZPointF>> outXYZ0PUAll_;
+
+  std::vector<math::XYZPointF> outXYZ0PUAll_;
+  edm::EDPutTokenT<std::vector<math::XYZPointF>> ptokenXYZ0PUAll_;
+
+  std::vector<float> outt0PUAll_;
 
   std::vector<std::unique_ptr<GenJetCollection>> vecOutGenJets_;
   std::vector<std::unique_ptr<math::XYZPointF>>  vecOutXYZ0_;
@@ -69,7 +75,6 @@ private:
   int nMaxPUEvent_;
   int puEvtCounter_;
 
-  edm::InputTag label_;
   edm::InputTag inputTagPlayback_;
 
   std::unique_ptr<PileUp> input_;
@@ -110,6 +115,12 @@ GenPUJetExtractor::GenPUJetExtractor(const ParameterSet& cfg):
 
   produces<GenJetCollection>("ak4GenJetsNoNuFromPU");
   produces<edm::ValueMap<int>>("ak4GenJetsNoNuFromPUEventIdx");
+  ptokenXYZ0PUAll_ = produces<std::vector<math::XYZPointF>>("xyz0PUEvent");
+  produces<edm::ValueMap<float>>("t0PUEvent");
+
+  // produces<std::vector<math::XYZPointF>>("xyz0PUEvent");
+
+  
 }
 
 GenPUJetExtractor::~GenPUJetExtractor() {}
@@ -146,6 +157,12 @@ void GenPUJetExtractor::produce(Event& iEvent, const EventSetup& iSetup) {
   //
   //
   //
+  outGenJetsPUAll_ = std::make_unique<reco::GenJetCollection>();
+  outGenJetsPUAllIdx_.clear();
+  // outXYZ0PUAll_ = std::make_unique<std::vector<math::XYZPointF>>();
+  outXYZ0PUAll_.clear();
+  outt0PUAll_.clear();
+
   vecOutGenJets_.clear();
   vecOutXYZ0_.clear();
   vecOutt0_.clear();
@@ -154,9 +171,6 @@ void GenPUJetExtractor::produce(Event& iEvent, const EventSetup& iSetup) {
     vecOutXYZ0_.emplace_back(std::make_unique<math::XYZPointF>());
     vecOutt0_.emplace_back(std::make_unique<float>());
   }
-
-  outGenJetsPUAll_ = std::make_unique<reco::GenJetCollection>();
-  outGenJetsPUAllIdx_.clear();
 
   //
   //
@@ -183,6 +197,16 @@ void GenPUJetExtractor::produce(Event& iEvent, const EventSetup& iSetup) {
   filler_genJetPUAllIdx.insert(orphanHandle, outGenJetsPUAllIdx_.begin(), outGenJetsPUAllIdx_.end());
   filler_genJetPUAllIdx.fill();
   iEvent.put(std::move(genJetPUAllIdxV),"ak4GenJetsNoNuFromPUEventIdx");
+
+  // iEvent.put(std::move(outXYZ0PUAll_),"xyz0PUEvent");
+  // iEvent.emplace(ptokenXYZ0PUAll_,outXYZ0PUAll_,);
+
+  edm::OrphanHandle<std::vector<math::XYZPointF>> orphanHandle2 = iEvent.emplace(ptokenXYZ0PUAll_,outXYZ0PUAll_);
+  auto t0PUEventV = std::make_unique<edm::ValueMap<float>>();
+  edm::ValueMap<float>::Filler filler_t0PUEvent(*t0PUEventV);
+  filler_t0PUEvent.insert(orphanHandle2, outt0PUAll_.begin(), outt0PUAll_.end());
+  filler_t0PUEvent.fill();
+  iEvent.put(std::move(t0PUEventV),"t0PUEvent");
 }
 
 bool GenPUJetExtractor::getGenJets(EventPrincipal const& eventPrincipal,
@@ -218,6 +242,8 @@ bool GenPUJetExtractor::getGenJets(EventPrincipal const& eventPrincipal,
   std::shared_ptr<Wrapper<math::XYZPointF> const> shPtr_xyz0 = getProductByTag<math::XYZPointF>(eventPrincipal, tag_xyz0_, &moduleCallingContext);
   if (shPtr_xyz0) {
     vecOutXYZ0_[puEvtCounter_].reset(new math::XYZPointF(*(shPtr_xyz0->product())));
+    // outXYZ0PUAll_->emplace_back(math::XYZPointF(*(shPtr_xyz0->product())));
+    outXYZ0PUAll_.emplace_back(math::XYZPointF(*(shPtr_xyz0->product())));
   }else{
     std::cout << "Warning: no shPtr_xyz0" << std::endl;
   }
@@ -225,6 +251,7 @@ bool GenPUJetExtractor::getGenJets(EventPrincipal const& eventPrincipal,
   std::shared_ptr<Wrapper<float> const> shPtr_t0 = getProductByTag<float>(eventPrincipal, tag_t0_, &moduleCallingContext);
   if (shPtr_xyz0) {
     vecOutt0_[puEvtCounter_].reset(new float(*(shPtr_t0->product())));
+    outt0PUAll_.emplace_back(*(shPtr_t0->product()));
   }else{
     std::cout << "Warning: no shPtr_t0" << std::endl;
   }
