@@ -44,7 +44,6 @@ process.GenPUJetExtractor = cms.EDProducer("GenPUJetExtractor",
 # process.p = cms.Path(process.GenPUJetExtractor)
 
 
-
 from PhysicsTools.NanoAOD.common_cff import *
 from PhysicsTools.NanoAOD.nanogen_cff import nanoMetadata as _nanoMetadata
 from PhysicsTools.NanoAOD.jetMC_cff import genJetTable as _genJetTable
@@ -65,21 +64,6 @@ _genJetTableTemp.variables.chargedEmMultiplicity = Var("chargedEmMultiplicity()"
 _genJetTableTemp.variables.neutralEmMultiplicity = Var("neutralEmMultiplicity()", "uint8", doc="neutralEmMultiplicity()")
 _genJetTableTemp.variables.muonMultiplicity = Var("muonMultiplicity()", "uint8", doc="muonMultiplicity()")
 
-# nMaxPUEvent=100
-# for iPU in range(0,nMaxPUEvent):
-#   setattr(process,f"genJet{iPU}Table", _genJetTableTemp.clone())
-#   getattr(process,f"genJet{iPU}Table").name=f"PUEvt{iPU}GenJet"
-#   getattr(process,f"genJet{iPU}Table").src= cms.InputTag("GenPUJetExtractor",f"ak4GenJetsNoNuPUEvent{iPU}")
-#   getattr(process,f"genJet{iPU}Table").cut=""
-#   setattr(process,f"genVertex{iPU}Table", _genVertexTable.clone())
-#   getattr(process,f"genVertex{iPU}Table").name=f"PUEvt{iPU}GenVtx"
-#   getattr(process,f"genVertex{iPU}Table").src= cms.InputTag("GenPUJetExtractor",f"xyz0PUEvent{iPU}")
-#   setattr(process,f"genVertex{iPU}T0Table", _genVertexT0Table.clone())
-#   getattr(process,f"genVertex{iPU}T0Table").name=f"PUEvt{iPU}GenVtx"
-#   getattr(process,f"genVertex{iPU}T0Table").variables = cms.PSet(
-#      t = ExtVar(cms.InputTag("GenPUJetExtractor",f"t0PUEvent{iPU}"), "float", doc = "gen vertex t0", precision=12)
-#   )
-
 process.genJetPileUpTable = _genJetTableTemp.clone()
 process.genJetPileUpTable.name = f"PileUpGenJet"
 process.genJetPileUpTable.src = cms.InputTag("GenPUJetExtractor","ak4GenJetsNoNuFromPU")
@@ -91,7 +75,7 @@ process.genJetPileUpTable.externalVariables = cms.PSet(
 from PhysicsTools.NanoAOD.simpleXYZPointFlatTableProducerV2_cfi import simpleXYZPointFlatTableProducerV2 as _genPUVertexTable
 process.genPUVertexTable = _genPUVertexTable.clone()
 process.genPUVertexTable.name = "PileUpGenVtx"
-process.genPUVertexTable.src  = cms.InputTag("GenPUJetExtractor","xyz0PUEvent")
+process.genPUVertexTable.src  = cms.InputTag("GenPUJetExtractor","PUEventXYZ")
 process.genPUVertexTable.doc  = "Pileup GenVtx"
 process.genPUVertexTable.variables = cms.PSet(
    x = Var("X", float, doc="gen vertex x", precision=10),
@@ -99,20 +83,15 @@ process.genPUVertexTable.variables = cms.PSet(
    z = Var("Z", float, doc="gen vertex z", precision=16),
 )
 process.genPUVertexTable.externalVariables = cms.PSet(
-  t = ExtVar(cms.InputTag("GenPUJetExtractor", "t0PUEvent"), float,  doc="t", precision=16),
+  t = ExtVar(cms.InputTag("GenPUJetExtractor", "PUEventT"), float,  doc="t", precision=16),
 )
 
 process.nanogenSequence = cms.Sequence(
   process.nanoMetadata +
-  process.GenPUJetExtractor
+  process.GenPUJetExtractor +
+  process.genJetPileUpTable +
+  process.genPUVertexTable
 )
-# for iPU in range(0,nMaxPUEvent):
-#   process.nanogenSequence += getattr(process,f"genJet{iPU}Table")
-#   process.nanogenSequence += getattr(process,f"genVertex{iPU}Table")
-#   process.nanogenSequence += getattr(process,f"genVertex{iPU}T0Table")
-
-process.nanogenSequence += process.genJetPileUpTable
-process.nanogenSequence += process.genPUVertexTable
 
 process.nanoAOD_step = cms.Path(process.nanogenSequence)
 
