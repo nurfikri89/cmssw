@@ -8,6 +8,7 @@
 #include "SimDataFormats/Vertex/interface/SimVertexContainer.h"
 #include "SimDataFormats/GeneratorProducts/interface/HepMCProduct.h"
 #include "DataFormats/Common/interface/Wrapper.h"
+#include "DataFormats/JetReco/interface/GenJetCollection.h"
 
 #include <map>
 #include <string>
