@@ -3,8 +3,8 @@ import FWCore.ParameterSet.Config as cms
 process = cms.Process("PLAYBACK")
 
 process.maxEvents = cms.untracked.PSet(
-    input = cms.untracked.int32(5),
-    # input = cms.untracked.int32(-1),
+    # input = cms.untracked.int32(5),
+    input = cms.untracked.int32(-1),
 )
 
 process.source = cms.Source("PoolSource",
@@ -21,18 +21,8 @@ process.RandomNumberGeneratorService = cms.Service("RandomNumberGeneratorService
 )
 
 from test_playback_helpers import fileNamesMinBias
-# process.playBack = cms.EDAnalyzer("TestPlayback",
-#   input = cms.SecSource("EmbeddedRootSource",
-#     type = cms.string('fixed'),
-#     nbPileupEvents = cms.PSet(
-#       averageNumber = cms.double(1.0)
-#     ),
-#     fileNames = fileNamesMinBias
-#   )
-# )
-# process.p = cms.Path(process.playBack)
-
 process.GenPUJetExtractor = cms.EDProducer("GenPUJetExtractor",
+  bunchIdx = cms.int32(0),
   input = cms.SecSource("EmbeddedRootSource",
     type = cms.string('fixed'),
     nbPileupEvents = cms.PSet(
@@ -42,7 +32,6 @@ process.GenPUJetExtractor = cms.EDProducer("GenPUJetExtractor",
   )
 )
 # process.p = cms.Path(process.GenPUJetExtractor)
-
 
 from PhysicsTools.NanoAOD.common_cff import *
 from PhysicsTools.NanoAOD.nanogen_cff import nanoMetadata as _nanoMetadata
