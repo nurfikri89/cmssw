@@ -26,6 +26,7 @@
 #include "DataFormats/Common/interface/ValueMap.h"
 #include "DataFormats/JetReco/interface/GenJetCollection.h"
 #include "DataFormats/HepMCCandidate/interface/GenParticle.h"
+#include "DataFormats/HepMCCandidate/interface/GenParticleFwd.h"
 
 #include "Mixing/Base/interface/PileUp.h"
 #include "SimGeneral/MixingModule/interface/PileUpEventPrincipal.h"
@@ -60,12 +61,16 @@ public:
   std::unique_ptr<std::vector<math::XYZPointF>> outPileupVtx_XYZ_;
   std::unique_ptr<std::vector<float>> outPileupVtx_t_;
 
+  std::unique_ptr<GenParticleCollection> outPileUpGenParticles_;
+  std::unique_ptr<std::vector<int>>      outPileUpGenParticlesEvtIdx_;
+
 private:
   // ----------member data ---------------------------
-  int minBunch_;
-  int maxBunch_;
+  int bunchIdx_;
   int nMaxPUEvent_;
   int puEvtCounter_;
+
+  bool saveGenParticles_;
 
   edm::InputTag inputTagPlayback_;
 
@@ -73,14 +78,18 @@ private:
   InputTag tag_;
   InputTag tag_xyz0_;
   InputTag tag_t0_;
+  InputTag tag_GenParticles_;
 };
 
 
 GenPUJetExtractor::GenPUJetExtractor(const ParameterSet& cfg): 
-  minBunch_(0),maxBunch_(0),nMaxPUEvent_(100),
+  bunchIdx_(cfg.getParameter<int>("bunchIdx")),
+  nMaxPUEvent_(200),
+  saveGenParticles_(cfg.getParameter<bool>("saveGenParticles")),
   tag_(InputTag("ak4GenJetsNoNu")),
   tag_xyz0_(InputTag("genParticles","xyz0")),
-  tag_t0_(InputTag("genParticles","t0"))
+  tag_t0_(InputTag("genParticles","t0")),
+  tag_GenParticles_(InputTag("genParticles"))
 {
   //
   //
@@ -104,6 +113,10 @@ GenPUJetExtractor::GenPUJetExtractor(const ParameterSet& cfg):
   produces<edm::ValueMap<int>>("ak4GenJetsNoNuFromPUEventIdx");
   produces<std::vector<math::XYZPointF>>("PUEventXYZ");
   produces<edm::ValueMap<float>>("PUEventT");
+  if (saveGenParticles_){
+    produces<GenParticleCollection>("genParticlesStatusOneFromPU");
+    produces<edm::ValueMap<int>>("genParticlesStatusOneFromPUEventIdx");
+  }
 }
 
 GenPUJetExtractor::~GenPUJetExtractor() {}
@@ -126,8 +139,7 @@ void GenPUJetExtractor::produce(Event& iEvent, const EventSetup& iSetup) {
   //
   //
   //
-  int bunchIdx = 0;
-  size_t numberOfEvents = playbackInfo->getNumberOfEvents(bunchIdx, 0);
+  size_t numberOfEvents = playbackInfo->getNumberOfEvents(bunchIdx_, 0);
 
   //
   //
@@ -144,8 +156,8 @@ void GenPUJetExtractor::produce(Event& iEvent, const EventSetup& iSetup) {
   outPileUpGenJetsEvtIdx_ = std::make_unique<std::vector<int>>();
   outPileupVtx_XYZ_ = std::make_unique<std::vector<math::XYZPointF>>();
   outPileupVtx_t_ = std::make_unique<std::vector<float>>();
-
-
+  outPileUpGenParticles_  = std::make_unique<reco::GenParticleCollection>();
+  outPileUpGenParticlesEvtIdx_  = std::make_unique<std::vector<int>>();
 
   //
   //
@@ -153,7 +165,7 @@ void GenPUJetExtractor::produce(Event& iEvent, const EventSetup& iSetup) {
   int vertexOffset = 0;
   puEvtCounter_ = 0;
   input_->playPileUp(begin, end, recordEventID,std::bind(
-      &GenPUJetExtractor::getGenJets, this, _1, mcc, bunchIdx, _2, vertexOffset, std::ref(iSetup), iEvent.streamID()
+      &GenPUJetExtractor::getGenJets, this, _1, mcc, bunchIdx_, _2, vertexOffset, std::ref(iSetup), iEvent.streamID()
     )
   );
 
@@ -167,7 +179,7 @@ void GenPUJetExtractor::produce(Event& iEvent, const EventSetup& iSetup) {
   filler_genJetPUAllIdx.fill();
   iEvent.put(std::move(genJetPUAllIdxV),"ak4GenJetsNoNuFromPUEventIdx");
 
- //
+  //
   //
   //
   edm::OrphanHandle<std::vector<math::XYZPointF>> orphanHandle2 = iEvent.put(std::move(outPileupVtx_XYZ_), "PUEventXYZ");
@@ -176,6 +188,19 @@ void GenPUJetExtractor::produce(Event& iEvent, const EventSetup& iSetup) {
   filler_t0PUEvent.insert(orphanHandle2, outPileupVtx_t_->begin(), outPileupVtx_t_->end());
   filler_t0PUEvent.fill();
   iEvent.put(std::move(t0PUEventV),"PUEventT");
+
+
+  //
+  //
+  //
+  if (saveGenParticles_){
+    edm::OrphanHandle<reco::GenParticleCollection> orphanHandle3 = iEvent.put(std::move(outPileUpGenParticles_),"genParticlesStatusOneFromPU");
+    auto genParticlesPUAllIdxV = std::make_unique<edm::ValueMap<int>>();
+    edm::ValueMap<int>::Filler filler_genParticlesPUAllIdx(*genParticlesPUAllIdxV);
+    filler_genParticlesPUAllIdx.insert(orphanHandle3, outPileUpGenParticlesEvtIdx_->begin(), outPileUpGenParticlesEvtIdx_->end());
+    filler_genParticlesPUAllIdx.fill();
+    iEvent.put(std::move(genParticlesPUAllIdxV),"genParticlesStatusOneFromPUEventIdx");
+  }
 }
 
 bool GenPUJetExtractor::getGenJets(EventPrincipal const& eventPrincipal,
@@ -221,6 +246,21 @@ bool GenPUJetExtractor::getGenJets(EventPrincipal const& eventPrincipal,
     std::cout << "Warning: no shPtr_t0" << std::endl;
   }
   // std::cout << (*(shPtr_t0->product())) << std::endl;
+
+  if (saveGenParticles_){
+    std::shared_ptr<Wrapper<std::vector<reco::GenParticle> > const> shPtr_genParticles = getProductByTag<std::vector<reco::GenParticle> >(eventPrincipal, tag_GenParticles_, &moduleCallingContext);
+    if (shPtr_genParticles) {
+      auto prodColl_genParticles = shPtr_genParticles->product();
+      for (size_t i = 0; i < prodColl_genParticles->size(); i++){
+        if(prodColl_genParticles->at(i).status() != 1) continue;
+        outPileUpGenParticles_->emplace_back(prodColl_genParticles->at(i));
+        outPileUpGenParticlesEvtIdx_->emplace_back(puEvtCounter_);
+      }
+    }
+    else{
+      std::cout << "Warning: no shPtr_genParticles" << std::endl;
+    }
+  }
 
   puEvtCounter_++;
   return true;

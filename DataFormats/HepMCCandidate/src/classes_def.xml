@@ -7,6 +7,7 @@
    <version ClassVersion="10" checksum="2736964676"/>
   </class>
   <class name="std::vector<reco::GenParticle>" />
+  <class name="std::vector<std::vector<std::vector<reco::GenParticle> > >" />
   <class name="edm::Wrapper<std::vector<reco::GenParticle> >" />
   <class name="edm::Association<std::vector<reco::GenParticle> >" />
   <class name="edm::Wrapper<edm::Association<std::vector<reco::GenParticle> > >" />
@@ -54,6 +55,9 @@
   <class name="edm::RefVectorIterator<std::vector<reco::GenParticle>,reco::GenParticle,edm::refhelper::FindUsingAdvance<std::vector<reco::GenParticle>,reco::GenParticle> >"/>
   <class name="edm::ValueMap<edm::Ref<std::vector<reco::GenParticle>,reco::GenParticle,edm::refhelper::FindUsingAdvance<std::vector<reco::GenParticle>,reco::GenParticle> > >" />
   <class name="edm::Wrapper<edm::ValueMap<edm::Ref<std::vector<reco::GenParticle>,reco::GenParticle,edm::refhelper::FindUsingAdvance<std::vector<reco::GenParticle>,reco::GenParticle> > > >" />
+  <class name="edm::ValueMap<std::vector<reco::GenParticle> >" />
+  <class name="edm::Wrapper<edm::ValueMap<std::vector<reco::GenParticle> > >" />
+
   <!--<class pattern="std::iterator<*edm::Ref*GenParticle*>"/>-->
 </lcgdict>
  
