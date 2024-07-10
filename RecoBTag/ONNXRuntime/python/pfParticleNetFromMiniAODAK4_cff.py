@@ -8,7 +8,7 @@ from RecoBTag.ONNXRuntime.pfParticleNetFromMiniAODAK4DiscriminatorsJetTags_cfi i
 pfParticleNetFromMiniAODAK4CHSCentralTagInfos = ParticleNetFeatureEvaluator.clone(
     jets = "slimmedJets",
     jet_radius = 0.4,
-    min_jet_pt = 15,
+    min_jet_pt = 15.,
     min_jet_eta = 0.,
     max_jet_eta = 2.5,
 )
@@ -16,7 +16,7 @@ pfParticleNetFromMiniAODAK4CHSCentralTagInfos = ParticleNetFeatureEvaluator.clon
 pfParticleNetFromMiniAODAK4CHSForwardTagInfos = ParticleNetFeatureEvaluator.clone(
     jets = "slimmedJets",
     jet_radius = 0.4,
-    min_jet_pt = 15,
+    min_jet_pt = 15.,
     min_jet_eta = 2.5,
     max_jet_eta = 4.7,
 )
@@ -24,7 +24,7 @@ pfParticleNetFromMiniAODAK4CHSForwardTagInfos = ParticleNetFeatureEvaluator.clon
 pfParticleNetFromMiniAODAK4PuppiCentralTagInfos = ParticleNetFeatureEvaluator.clone(
     jets = "slimmedJetsPuppi",
     jet_radius = 0.4,
-    min_jet_pt = 15,
+    min_jet_pt = 0.,
     min_jet_eta = 0.,
     max_jet_eta = 2.5,
 )
@@ -32,7 +32,7 @@ pfParticleNetFromMiniAODAK4PuppiCentralTagInfos = ParticleNetFeatureEvaluator.cl
 pfParticleNetFromMiniAODAK4PuppiForwardTagInfos = ParticleNetFeatureEvaluator.clone(
     jets = "slimmedJetsPuppi",
     jet_radius = 0.4,
-    min_jet_pt = 15,
+    min_jet_pt = 0.,
     min_jet_eta = 2.5,
     max_jet_eta = 4.7,
 )
