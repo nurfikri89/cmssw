@@ -1,0 +1,1 @@
+/QCD_PT-15to7000_TuneCP5_Flat2022_13p6TeV_pythia8/Run3Summer22EEMiniAODv4-130X_mcRun3_2022_realistic_postEE_v6-v3/MINIAODSIM
