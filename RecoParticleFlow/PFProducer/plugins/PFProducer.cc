@@ -97,6 +97,8 @@ private:
 
   /// particle flow algorithm
   PFAlgo pfAlgo_;
+
+  edm::ValueMap<unsigned> candRecoLocationId;
 };
 
 DEFINE_FWK_MODULE(PFProducer);

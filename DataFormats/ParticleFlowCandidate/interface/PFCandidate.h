@@ -436,6 +436,9 @@ namespace reco {
     /// set the fraction of hcal energy as function of depth (index 0..6 for depth 1..7)
     void setHcalDepthEnergyFractions(const std::array<float, 7>& fracs) { hcalDepthEnergyFractions_ = fracs; }
 
+    void setRecoLocationIdx(unsigned idx){recoLocationIdx_ = idx;}
+    unsigned getRecoLocationIdx(){return recoLocationIdx_;}
+
   private:
     //function used before PR #31456, retained for backwards compatibility with old AOD where the vertex was not embedded
     const math::XYZPoint& vertexLegacy(PFCandidate::PFVertexType vertexType) const;
@@ -559,7 +562,11 @@ namespace reco {
     float timeError_;
 
     std::array<float, 7> hcalDepthEnergyFractions_;
+
+    unsigned recoLocationIdx_;
   };
+
+
 
   /// particle ID component tag
   struct PFParticleIdTag {};

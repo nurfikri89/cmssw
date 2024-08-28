@@ -334,6 +334,7 @@ private:
   const double nSigmaEConstHCAL = 100.;
   const double nSigmaEConstHFEM = 100.;
   const double nSigmaEConstHFHAD = 100.;
+
 };
 
 #endif
