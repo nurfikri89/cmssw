@@ -34,6 +34,12 @@ bTagMiniDQMGlobal = cms.PSet(
     ptMin = cms.double(30.),
     ptMax = cms.double(40000.),
 )
+bTagMiniValidationGlobal = bTagMiniDQMGlobal.clone(
+    MClevel = 1 # produce flavour plots for b, c ,light (dusg)
+)
+bTagMiniValidationGlobalUParT = bTagMiniDQMGlobal.clone(
+    MClevel = 4 # produce flavour plots for b, c ,light (dusg)
+)
 
 # Eta regions
 Etaregions = {
@@ -103,9 +109,6 @@ bTagMiniDQMSource = cms.Sequence(bTagSVDQM, patJetsSVInfoTask)
 bTagMiniDQMHarvesting = cms.Sequence()
 
 # For Validation
-bTagMiniValidationGlobal = bTagMiniDQMGlobal.clone(
-    MClevel = 1 # produce flavour plots for b, c ,light (dusg)
-)
 bTagMiniValidationSource = cms.Sequence(bTagSVDQM, patJetsSVInfoTask)
 bTagMiniValidationHarvesting = cms.Sequence()
 
@@ -124,7 +127,7 @@ for tagger in taggersToAnalyze:
                  bTagMiniValidationHarvesting,
                  discriminators=taggersToAnalyze[tagger]['discriminators'],
                  regions=taggersToAnalyze[tagger]['regions'],
-                 globalPSet=bTagMiniValidationGlobal,
+                 globalPSet=bTagMiniValidationGlobalUParT if "UParT" in tagger else bTagMiniValidationGlobal,
                  label=tagger+'Validation')
 
 from Configuration.ProcessModifiers.pp_on_AA_cff import pp_on_AA
