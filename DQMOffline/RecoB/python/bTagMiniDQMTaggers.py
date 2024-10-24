@@ -217,7 +217,7 @@ for meta_tagger in pfUnifiedParticleTransformerAK4JetTagsMetaDiscrs:
             commonTaggerConfig,
             cTagGenericAnalysisBlock
         )
-    elif "SvsG" in discr:
+    elif "Svs" in discr:
         UParTDiscriminators[discr] = cms.PSet(
             commonTaggerConfig,
             cTagGenericAnalysisBlock
