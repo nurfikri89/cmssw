@@ -130,6 +130,60 @@ for tagger in taggersToAnalyze:
                  globalPSet=bTagMiniValidationGlobalUParT if "UParT" in tagger else bTagMiniValidationGlobal,
                  label=tagger+'Validation')
 
+
+#
+#
+#
+# from PhysicsTools.PatAlgos.producersLayer1.jetUpdater_cfi import updatedPatJets
+# patjetsPuppiBTagDQM = updatedPatJets.clone(
+#     jetCorrFactorsSource = cms.VInputTag(cms.InputTag("patJetCorrFactorsTransientCorrectedSlimmedPuppiWithDeepTags")),
+#     jetSource = cms.InputTag("updatedPatJetsSlimmedPuppiWithDeepTags"),
+#     tagInfoSources = cms.VInputTag(
+#         # cms.InputTag("pfImpactParameterTagInfosSlimmedPuppiWithDeepTags"),
+#         # cms.InputTag("pfInclusiveSecondaryVertexFinderTagInfosSlimmedPuppiWithDeepTags"),
+#         # cms.InputTag("pfDeepCSVTagInfosSlimmedPuppiWithDeepTags"),
+#         cms.InputTag("pfDeepFlavourTagInfosSlimmedPuppiWithDeepTags"),
+#         cms.InputTag("pfParticleNetFromMiniAODAK4PuppiCentralTagInfosSlimmedPuppiWithDeepTags"),
+#         cms.InputTag("pfParticleNetFromMiniAODAK4PuppiForwardTagInfosSlimmedPuppiWithDeepTags"),
+#         cms.InputTag("pfUnifiedParticleTransformerAK4TagInfosSlimmedPuppiWithDeepTags")
+#     ),
+#     addTagInfos = cms.bool(True),
+# )
+# bTagMiniValidationSource += patjetsPuppiBTagDQM
+# patJetsPuppiTagInfoAnalyzerValidation = DQMEDAnalyzer('MiniAODTagInfoAnalyzer', cms.PSet(
+#     jetSource = cms.InputTag('patjetsPuppiBTagDQM'),
+#     jetTagInfos = cms.vstring(
+#         'pfDeepFlavour',
+#         # 'pfParticleNetFromMiniAODAK4PuppiCentral',
+#         # 'pfParticleNetFromMiniAODAK4PuppiForward',
+#         'pfUnifiedParticleTransformerAK4'
+#     ),
+#     ptMin = cms.double(30.),
+#     absEtaMin = cms.double(0.0),
+#     absEtaMax = cms.double(2.5),
+#    )
+# )
+# bTagMiniValidationSource += patJetsPuppiTagInfoAnalyzerValidation
+
+patJetsPuppiTagInfoAnalyzerValidation = DQMEDAnalyzer('MiniAODTaggerInputsAnalyzerV3', cms.PSet(
+    jets = cms.InputTag('updatedPatJetsSlimmedPuppiWithDeepTags'),
+    jetTagInfos = cms.vstring(
+        "pfDeepCSVTagInfosSlimmedPuppiWithDeepTags",
+        "pfDeepFlavourTagInfosSlimmedPuppiWithDeepTags",
+        "pfParticleNetFromMiniAODAK4PuppiCentralTagInfosSlimmedPuppiWithDeepTags",
+        "pfParticleNetFromMiniAODAK4PuppiForwardTagInfosSlimmedPuppiWithDeepTags",
+        "pfUnifiedParticleTransformerAK4TagInfosSlimmedPuppiWithDeepTags",
+    ),
+    ptMin = cms.double(30.),
+    absEtaMin = cms.double(0.0),
+    absEtaMax = cms.double(2.5),
+   )
+)
+bTagMiniValidationSource += patJetsPuppiTagInfoAnalyzerValidation
+
+# pfImpactParameterTagInfosSlimmedPuppiWithDeepTags
+# pfInclusiveSecondaryVertexFinderTagInfosSlimmedPuppiWithDeepTags
+
 from Configuration.ProcessModifiers.pp_on_AA_cff import pp_on_AA
 from Configuration.ProcessModifiers.miniAOD_skip_trackExtras_cff import miniAOD_skip_trackExtras
 
