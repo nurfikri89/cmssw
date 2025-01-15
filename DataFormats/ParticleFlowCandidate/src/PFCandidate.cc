@@ -55,6 +55,7 @@ PFCandidate::PFCandidate()
   setPdgId(translateTypeToPdgId(X));
   refsInfo_.reserve(3);
   std::fill(hcalDepthEnergyFractions_.begin(), hcalDepthEnergyFractions_.end(), 0.f);
+  recoLocationIdx_=0;
 }
 
 const math::XYZPoint& PFCandidate::vertex() const { return vertexLegacy(vertexType_); }
@@ -62,6 +63,7 @@ const math::XYZPoint& PFCandidate::vertex() const { return vertexLegacy(vertexTy
 PFCandidate::PFCandidate(const PFCandidatePtr& sourcePtr) : PFCandidate(*sourcePtr) {
   sourcePtr_ = sourcePtr;
   hcalDepthEnergyFractions_ = sourcePtr->hcalDepthEnergyFractions_;  // GP not sure it's needed
+  recoLocationIdx_= sourcePtr->recoLocationIdx_;
 }
 
 PFCandidate::PFCandidate(Charge charge, const LorentzVector& p4, ParticleType partId)
@@ -99,6 +101,7 @@ PFCandidate::PFCandidate(Charge charge, const LorentzVector& p4, ParticleType pa
   blocksStorage_.reserve(10);
   elementsStorage_.reserve(10);
   std::fill(hcalDepthEnergyFractions_.begin(), hcalDepthEnergyFractions_.end(), 0.f);
+  recoLocationIdx_=0;
 
   muonTrackType_ = reco::Muon::None;
 
@@ -160,7 +163,8 @@ PFCandidate::PFCandidate(PFCandidate const& iOther)
       refsCollectionCache_(iOther.refsCollectionCache_),
       time_(iOther.time_),
       timeError_(iOther.timeError_),
-      hcalDepthEnergyFractions_(iOther.hcalDepthEnergyFractions_) {
+      hcalDepthEnergyFractions_(iOther.hcalDepthEnergyFractions_),
+      recoLocationIdx_(iOther.recoLocationIdx_){
   auto tmp = iOther.elementsInBlocks_.load(std::memory_order_acquire);
   if (nullptr != tmp) {
     elementsInBlocks_.store(new ElementsInBlocks{*tmp}, std::memory_order_release);
@@ -211,6 +215,7 @@ PFCandidate& PFCandidate::operator=(PFCandidate const& iOther) {
   time_ = iOther.time_;
   timeError_ = iOther.timeError_;
   hcalDepthEnergyFractions_ = iOther.hcalDepthEnergyFractions_;
+  recoLocationIdx_ = iOther.recoLocationIdx_;
   return *this;
 }
 

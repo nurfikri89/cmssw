@@ -322,6 +322,7 @@ void PFAlgo::egammaFilters(const reco::PFBlockRef& blockref,
 
         LogTrace("PFAlgo|egammaFilters") << "Creating PF electron: pt=" << myPFElectron.pt()
                                          << " eta=" << myPFElectron.eta() << " phi=" << myPFElectron.phi();
+        myPFElectron.setRecoLocationIdx(51);
         pfCandidates_->push_back(myPFElectron);
 
       } else {
@@ -359,6 +360,7 @@ void PFAlgo::egammaFilters(const reco::PFBlockRef& blockref,
         }
         LogTrace("PFAlgo|egammaFilters") << "Creating PF photon: pt=" << myPFPhoton.pt() << " eta=" << myPFPhoton.eta()
                                          << " phi=" << myPFPhoton.phi();
+        myPFPhoton.setRecoLocationIdx(52);
         pfCandidates_->push_back(myPFPhoton);
 
       }  // end isSafe
@@ -498,6 +500,7 @@ bool PFAlgo::recoTracksNotHCAL(const reco::PFBlock& block,
   }  //rejectTracks_Step45_ && ...
 
   tmpi.push_back(reconstructTrack(elements[iTrack]));
+  (*pfCandidates_)[tmpi[0]].setRecoLocationIdx(42);
 
   kTrack.push_back(iTrack);
   active[iTrack] = false;
@@ -634,6 +637,7 @@ bool PFAlgo::recoTracksNotHCAL(const reco::PFBlock& block,
     // And create a charged particle candidate !
 
     tmpi.push_back(reconstructTrack(elements[jTrack]));
+    (*pfCandidates_)[tmpi.back()].setRecoLocationIdx(43);
 
     kTrack.push_back(jTrack);
     active[jTrack] = false;
@@ -727,6 +731,7 @@ bool PFAlgo::recoTracksNotHCAL(const reco::PFBlock& block,
 
       auto& ecalCand = (*pfCandidates_)[reconstructCluster(
           *clusterRef, ecalEnergyCalibrated)];  // KH: use the PF ECAL cluster calibrated energy
+      ecalCand.setRecoLocationIdx(43);
       ecalCand.setEcalEnergy(clusterRef->energy(), ecalEnergyCalibrated);
       ecalCand.setHcalEnergy(0., 0.);
       ecalCand.setHoEnergy(0., 0.);
@@ -802,6 +807,7 @@ bool PFAlgo::recoTracksNotHCAL(const reco::PFBlock& block,
     if (neutralEnergy > std::max(0.5, nSigmaECAL_ * resol)) {
       neutralEnergy /= slopeEcal;
       unsigned tmpj = reconstructCluster(*pivotalRef, neutralEnergy);
+      (*pfCandidates_)[tmpj].setRecoLocationIdx(44);//FIKRI
       (*pfCandidates_)[tmpj].setEcalEnergy(pivotalRef->energy(), neutralEnergy);
       (*pfCandidates_)[tmpj].setHcalEnergy(0., 0.);
       (*pfCandidates_)[tmpj].setHoEnergy(0., 0.);
@@ -864,6 +870,7 @@ bool PFAlgo::checkAndReconstructSecondaryInteraction(const reco::PFBlockRef& blo
       LogTrace("PFAlgo|elementLoop") << "Primary Track reconstructed alone";
 
       unsigned tmpi = reconstructTrack(elements[iElement]);
+      (*pfCandidates_)[tmpi].setRecoLocationIdx(41);
       (*pfCandidates_)[tmpi].addElementInBlock(blockref, iElement);
       ret = false;
     }
@@ -1625,6 +1632,7 @@ void PFAlgo::createCandidatesHF(const reco::PFBlock& block,
               uncalibratedenergyHF, clusterRef->positionREP().Eta(), clusterRef->positionREP().Phi());
         }
         tmpi = reconstructCluster(*clusterRef, energyHF);
+        (*pfCandidates_)[tmpi].setRecoLocationIdx(1);
         (*pfCandidates_)[tmpi].setEcalEnergy(uncalibratedenergyHF, energyHF);
         (*pfCandidates_)[tmpi].setHcalEnergy(0., 0.);
         (*pfCandidates_)[tmpi].setHoEnergy(0., 0.);
@@ -1642,6 +1650,7 @@ void PFAlgo::createCandidatesHF(const reco::PFBlock& block,
               uncalibratedenergyHF, clusterRef->positionREP().Eta(), clusterRef->positionREP().Phi());
         }
         tmpi = reconstructCluster(*clusterRef, energyHF);
+        (*pfCandidates_)[tmpi].setRecoLocationIdx(2);
         (*pfCandidates_)[tmpi].setHcalEnergy(uncalibratedenergyHF, energyHF);
         (*pfCandidates_)[tmpi].setEcalEnergy(0., 0.);
         (*pfCandidates_)[tmpi].setHoEnergy(0., 0.);
@@ -1680,6 +1689,7 @@ void PFAlgo::createCandidatesHF(const reco::PFBlock& block,
           0.0, uncalibratedenergyHfHad, c1->positionREP().Eta(), c1->positionREP().Phi());
     }
     auto& cand = (*pfCandidates_)[reconstructCluster(*chad, energyHfEm + energyHfHad)];
+    cand.setRecoLocationIdx(3);
     cand.setEcalEnergy(uncalibratedenergyHfEm, energyHfEm);
     cand.setHcalEnergy(uncalibratedenergyHfHad, energyHfHad);
     cand.setHoEnergy(0., 0.);
@@ -1842,6 +1852,7 @@ void PFAlgo::createCandidatesHCAL(const reco::PFBlock& block,
         // Create a muon.
 
         unsigned tmpi = reconstructTrack(elements[iTrack]);
+        (*pfCandidates_)[tmpi].setRecoLocationIdx(11);
 
         (*pfCandidates_)[tmpi].addElementInBlock(blockref, iTrack);
         (*pfCandidates_)[tmpi].addElementInBlock(blockref, iHcal);
@@ -2214,6 +2225,7 @@ void PFAlgo::createCandidatesHCAL(const reco::PFBlock& block,
 
           //Here allow for loose muons!
           auto& muon = (*pfCandidates_)[reconstructTrack(elements[iTrack], true)];
+          muon.setRecoLocationIdx(12);
 
           muon.addElementInBlock(blockref, iTrack);
           muon.addElementInBlock(blockref, iHcal);
@@ -2398,6 +2410,7 @@ void PFAlgo::createCandidatesHCAL(const reco::PFBlock& block,
       double trackMomentum = trackRef->p();
       double dp = trackRef->qoverpError() * trackMomentum * trackMomentum;
       unsigned tmpi = reconstructTrack(elements[iTrack]);
+      (*pfCandidates_)[tmpi].setRecoLocationIdx(13);// FIKRI: Make PF charged hadron
 
       (*pfCandidates_)[tmpi].addElementInBlock(blockref, iTrack);
       (*pfCandidates_)[tmpi].addElementInBlock(blockref, iHcal);
@@ -2699,6 +2712,7 @@ void PFAlgo::createCandidatesHCAL(const reco::PFBlock& block,
                                                             particleDirection[iPivot].X(),
                                                             particleDirection[iPivot].Y(),
                                                             particleDirection[iPivot].Z())];
+        neutral.setRecoLocationIdx(14);// FIKRI: Make PF neutral hadron or photon from pivotal cluster
 
         neutral.setEcalEnergy(rawecalEnergy[iPivot], ecalEnergy[iPivot]);
         if (!useHO_) {
@@ -2802,6 +2816,7 @@ void PFAlgo::createCandidatesHCAL(const reco::PFBlock& block,
           std::get<2>(
               ecalSatellite.second);  // KH: calibrated under the egamma hypothesis (rawEcalClusterEnergy * calibration)
       auto& cand = (*pfCandidates_)[reconstructCluster(*eclusterref, ecalClusterEnergyCalibrated)];
+      cand.setRecoLocationIdx(15);
       cand.setEcalEnergy(eclusterref->energy(), ecalClusterEnergyCalibrated);
       cand.setHcalEnergy(0., 0.);
       cand.setHoEnergy(0., 0.);
@@ -3003,6 +3018,7 @@ void PFAlgo::createCandidatesHCALUnlinked(const reco::PFBlock& block,
     }
 
     auto& cand = (*pfCandidates_)[reconstructCluster(*hclusterRef, calibEcal + calibHcal)];
+    cand.setRecoLocationIdx(21);//FIKRI::Make PF Neutral Hadron
 
     cand.setEcalEnergy(totalEcal, calibEcal);
     if (!useHO_) {
@@ -3060,6 +3076,7 @@ void PFAlgo::createCandidatesECAL(const reco::PFBlock& block,
     double particleEnergy = ecalEnergy;
 
     auto& cand = (*pfCandidates_)[reconstructCluster(*clusterref, particleEnergy)];
+    cand.setRecoLocationIdx(31);// FIKRI: Make PF photons
 
     cand.setEcalEnergy(clusterref->energy(), ecalEnergy);
     cand.setHcalEnergy(0., 0.);
@@ -3179,6 +3196,8 @@ unsigned PFAlgo::reconstructTrack(const reco::PFBlockElement& elt, bool allowLoo
                                       << ", pt=" << momentum.pt() << ", eta=" << momentum.eta()
                                       << ", phi=" << momentum.phi();
   pfCandidates_->push_back(PFCandidate(charge, momentum, particleType));
+  // cands->back().setRecoLocationIdx(61);
+
   //Set vertex and stuff like this
   pfCandidates_->back().setVertex(trackRef->vertex());
   pfCandidates_->back().setTrackRef(trackRef);
