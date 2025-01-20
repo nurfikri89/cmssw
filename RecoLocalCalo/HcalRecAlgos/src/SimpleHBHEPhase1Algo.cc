@@ -135,7 +135,8 @@ HBHERecHit SimpleHBHEPhase1Algo::reconstruct(const HBHEChannelInfo& info,
     tdcTime += timeShift_;
 
   //FIKRI temp
-  if(channelId.ieta() >= 28 && channelId.ieta() <= 29){
+  if(fabs(channelId.ieta()) >= 28 && fabs(channelId.ieta()) <= 29){
+  // if(fabs(channelId.ieta()) >= 1 && fabs(channelId.ieta()) <= 29){
     if(channelId.depth() >= 1 && channelId.depth() <= 2){
       rhE *= 2.0f;
     }
