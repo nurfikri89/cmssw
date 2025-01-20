@@ -133,6 +133,14 @@ HBHERecHit SimpleHBHEPhase1Algo::reconstruct(const HBHEChannelInfo& info,
   float tdcTime = info.soiRiseTime();
   if (!HcalSpecialTimes::isSpecial(tdcTime))
     tdcTime += timeShift_;
+
+  //FIKRI temp
+  if(channelId.ieta() >= 28 && channelId.ieta() <= 29){
+    if(channelId.depth() >= 1 && channelId.depth() <= 2){
+      rhE *= 2.0f;
+    }
+  }
+
   rh = HBHERecHit(channelId, rhE, rht, tdcTime);
   rh.setRawEnergy(m0E);
   if (method3) {
