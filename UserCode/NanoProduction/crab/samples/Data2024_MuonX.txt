@@ -1,0 +1,11 @@
+/Muon0/Run2024F-PromptReco-v1/MINIAOD
+/Muon0/Run2024G-PromptReco-v1/MINIAOD
+/Muon0/Run2024H-PromptReco-v1/MINIAOD
+/Muon0/Run2024I-PromptReco-v1/MINIAOD
+/Muon0/Run2024I-PromptReco-v2/MINIAOD
+/Muon1/Run2024F-PromptReco-v1/MINIAOD
+/Muon1/Run2024G-PromptReco-v1/MINIAOD
+/Muon1/Run2024H-PromptReco-v1/MINIAOD
+/Muon1/Run2024I-PromptReco-v1/MINIAOD
+/Muon1/Run2024I-PromptReco-v2/MINIAOD
+
