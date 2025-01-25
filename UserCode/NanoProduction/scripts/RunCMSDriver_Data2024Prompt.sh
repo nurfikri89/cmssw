@@ -1,0 +1,14 @@
+cmsDriver.py \
+--python_filename Prod_Data_2024PromptNanoAOD_UParTv2.py \
+--eventcontent NANOAOD \
+--customise Configuration/DataProcessing/Utils.addMonitoring \
+--datatier NANOAOD \
+--fileout file:NANOAOD.root \
+--conditions 140X_dataRun3_Prompt_v4 \
+--step NANO \
+--scenario pp \
+--filein "dbs:/MuonEG/Run2024I-PromptReco-v2/MINIAOD" \
+--era Run3_2024 \
+--no_exec \
+--data \
+-n 100

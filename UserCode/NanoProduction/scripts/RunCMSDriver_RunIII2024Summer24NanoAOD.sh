@@ -1,0 +1,14 @@
+cmsDriver.py \
+--python_filename Prod_MC_2024Summer24NanoAOD_UParTv2.py \
+--eventcontent NANOAODSIM \
+--customise Configuration/DataProcessing/Utils.addMonitoring \
+--datatier NANOAODSIM \
+--fileout file:NANOAODSIM.root \
+--conditions 140X_mcRun3_2024_realistic_v26 \
+--step NANO \
+--scenario pp \
+--filein "dbs:/TTto2L2Nu_TuneCP5_13p6TeV_powheg-pythia8/RunIII2024Summer24MiniAOD-140X_mcRun3_2024_realistic_v26-v2/MINIAODSIM" \
+--era Run3_2024 \
+--no_exec \
+--mc \
+-n 100
