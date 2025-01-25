@@ -48,6 +48,14 @@ PATPuppiJetSpecificProducer::PATPuppiJetSpecificProducer(const edm::ParameterSet
   produces<edm::ValueMap<float> >("photonPuppiMultiplicity");
   produces<edm::ValueMap<float> >("HFHadronPuppiMultiplicity");
   produces<edm::ValueMap<float> >("HFEMPuppiMultiplicity");
+
+  // produces<edm::ValueMap<float> >("chargedHadronEnergyFraction");
+  // produces<edm::ValueMap<float> >("neutralHadronEnergyFraction");
+  // produces<edm::ValueMap<float> >("chargedEmEnergyFraction");
+  // produces<edm::ValueMap<float> >("neutralEmEnergyFraction");
+  // produces<edm::ValueMap<float> >("muonEnergyFraction");
+  // produces<edm::ValueMap<float> >("HFHadronEnergyFraction");
+  // produces<edm::ValueMap<float> >("HFEMEnergyFraction");
 }
 
 void PATPuppiJetSpecificProducer::produce(edm::StreamID, edm::Event& evt, const edm::EventSetup& es) const
@@ -62,6 +70,14 @@ void PATPuppiJetSpecificProducer::produce(edm::StreamID, edm::Event& evt, const 
   std::vector<float> HFHadronPuppiMultiplicities;
   std::vector<float> HFEMPuppiMultiplicities;
 
+  // std::vector<float> chargedHadronEnergyFractions;
+  // std::vector<float> neutralHadronEnergyFractions;
+  // std::vector<float> chargedEmEnergyFractions;
+  // std::vector<float> neutralEmEnergyFractions;
+  // std::vector<float> muonEnergyFractions;
+  // std::vector<float> HFHadronEnergyFractions;
+  // std::vector<float> HFEMEnergyFractions;
+
   for( auto const& c : *jets ) {
     float puppiMultiplicity = 0;
     float neutralPuppiMultiplicity = 0;
@@ -69,6 +85,14 @@ void PATPuppiJetSpecificProducer::produce(edm::StreamID, edm::Event& evt, const 
     float photonPuppiMultiplicity = 0;
     float HFHadronPuppiMultiplicity = 0;
     float HFEMPuppiMultiplicity = 0;
+
+    // float chargedHadronEnergy = 0.;
+    // float neutralHadronEnergy = 0.;
+    // float photonEnergy = 0.;
+    // float electronEnergy = 0.;
+    // float muonEnergy = 0.;
+    // float HFHadronEnergy = 0.;
+    // float HFEMEnergy = 0.;
 
     for (unsigned i = 0; i < c.numberOfDaughters(); i++) {
         const pat::PackedCandidate &dau = static_cast<const pat::PackedCandidate &>(*c.daughter(i));

@@ -219,7 +219,8 @@ def AddJetID(proc, jetName="", jetSrc="", jetTableName="", jetSequenceName=""):
   Setup modules to calculate PF jet ID
   """
 
-  isPUPPIJet = True if "Puppi" in jetName else False
+  isPUPPIJet = True if "PUPPI" in jetName.upper() else False
+  print("isPUPPIJet = :" +str(isPUPPIJet) + " for collection : "+jetName)
 
   looseJetId = "looseJetId{}".format(jetName)
   setattr(proc, looseJetId, proc.looseJetId.clone(
@@ -486,6 +487,13 @@ def SavePatJets(proc, jetName, payload, patJetFinalColl, jetTablePrefix, jetTabl
     )
   )
 
+  if jetName == "AK4PFPUPPI":
+    from PhysicsTools.PatAlgos.patPuppiJetSpecificProducer_cfi import patPuppiJetSpecificProducer
+    setattr(proc, "patPuppiJetSpecificProducer", patPuppiJetSpecificProducer.clone(
+        src=cms.InputTag(srcJets)
+      )
+    )
+
   #
   # Filter jets with pt cut
   #
@@ -525,6 +533,14 @@ def SavePatJets(proc, jetName, payload, patJetFinalColl, jetTablePrefix, jetTabl
     )
   )
   getattr(proc,jetTable).variables.pt.precision=10
+
+  if jetName == "AK4PFPUPPI":
+    getattr(proc,jetTable).variables.puppiMultiplicity = Var("userFloat('patPuppiJetSpecificProducer:puppiMultiplicity')",float, doc="puppiMultiplicity")
+    getattr(proc,jetTable).variables.neutralPuppiMultiplicity = Var("userFloat('patPuppiJetSpecificProducer:neutralPuppiMultiplicity')",float, doc="neutralPuppiMultiplicity")
+    getattr(proc,jetTable).variables.neutralHadronPuppiMultiplicity = Var("userFloat('patPuppiJetSpecificProducer:neutralHadronPuppiMultiplicity')",float,doc="neutralHadronPuppiMultiplicity")
+    getattr(proc,jetTable).variables.photonPuppiMultiplicity = Var("userFloat('patPuppiJetSpecificProducer:photonPuppiMultiplicity')",float, doc="photonPuppiMultiplicity")
+    getattr(proc,jetTable).variables.HFHadronPuppiMultiplicity = Var("userFloat('patPuppiJetSpecificProducer:HFHadronPuppiMultiplicity')",float, doc="HFHadronPuppiMultiplicity")
+    getattr(proc,jetTable).variables.HFEMPuppiMultiplicity = Var("userFloat('patPuppiJetSpecificProducer:HFEMPuppiMultiplicity')",float, doc="HFEMPuppiMultiplicity")
 
   #
   # Save MC-only jet variables in table
