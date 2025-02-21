@@ -46,10 +46,15 @@ linkedObjects = cms.EDProducer("PATObjectCrossLinker",
    vertices=cms.InputTag("slimmedSecondaryVertices")
 )
 
+##############################################################################
+# Making this release compatible with UL MiniAODv2
+# by commenting this block
+##############################################################################
 # Switch to AK4 CHS jets for Run-2
-run2_nanoAOD_ANY.toModify(
-    linkedObjects, jets="finalJets"
-)
+# run2_nanoAOD_ANY.toModify(
+#     linkedObjects, jets="finalJets"
+# )
+
 
 from PhysicsTools.NanoAOD.lhcInfoProducer_cfi import lhcInfoProducer
 lhcInfoTable = lhcInfoProducer.clone()
@@ -72,14 +77,18 @@ nanoTableTaskCommon = cms.Task(
     isoTrackTablesTask,softActivityTablesTask
 )
 
+##############################################################################
+# Making this release compatible with UL MiniAODv2
+# by commenting this block
+##############################################################################
 # Replace AK4 Puppi with AK4 CHS for Run-2
-_nanoTableTaskCommonRun2 = nanoTableTaskCommon.copy()
-_nanoTableTaskCommonRun2.replace(jetPuppiTask, jetTask)
-_nanoTableTaskCommonRun2.replace(jetPuppiForMETTask, jetForMETTask)
-_nanoTableTaskCommonRun2.replace(jetPuppiTablesTask, jetTablesTask)
-run2_nanoAOD_ANY.toReplaceWith(
-    nanoTableTaskCommon, _nanoTableTaskCommonRun2
-)
+# _nanoTableTaskCommonRun2 = nanoTableTaskCommon.copy()
+# _nanoTableTaskCommonRun2.replace(jetPuppiTask, jetTask)
+# _nanoTableTaskCommonRun2.replace(jetPuppiForMETTask, jetForMETTask)
+# _nanoTableTaskCommonRun2.replace(jetPuppiTablesTask, jetTablesTask)
+# run2_nanoAOD_ANY.toReplaceWith(
+#     nanoTableTaskCommon, _nanoTableTaskCommonRun2
+# )
 
 nanoSequenceCommon = cms.Sequence(nanoTableTaskCommon)
 
@@ -201,14 +210,130 @@ def nanoAOD_activateVID(process):
 
 def nanoAOD_customizeCommon(process):
 
+    ##############################################################################
+    #
+    # Making this release compatible with UL MiniAODv2
+    #
+    ##############################################################################
+
+    # AK4 taggers
+    from RecoBTag.ONNXRuntime.pfParticleNetFromMiniAODAK4_cff import _pfParticleNetFromMiniAODAK4PuppiCentralJetTagsAll as pfParticleNetFromMiniAODAK4PuppiCentralJetTagsAll
+    from RecoBTag.ONNXRuntime.pfParticleNetFromMiniAODAK4_cff import _pfParticleNetFromMiniAODAK4PuppiForwardJetTagsAll as pfParticleNetFromMiniAODAK4PuppiForwardJetTagsAll
+    from RecoBTag.ONNXRuntime.pfUnifiedParticleTransformerAK4_cff import _pfUnifiedParticleTransformerAK4JetTagsAll as pfUnifiedParticleTransformerAK4JetTagsAll
+    from RecoBTag.ONNXRuntime.pfUnifiedParticleTransformerAK4V1_cff import _pfUnifiedParticleTransformerAK4V1JetTagsAll as pfUnifiedParticleTransformerAK4V1JetTagsAll
+    btagDiscriminatorsAK4 = cms.PSet(
+     names=cms.vstring(
+      'pfDeepFlavourJetTags:probb',
+      'pfDeepFlavourJetTags:probbb',
+      'pfDeepFlavourJetTags:problepb',
+      'pfDeepFlavourJetTags:probc',
+      'pfDeepFlavourJetTags:probuds',
+      'pfDeepFlavourJetTags:probg')
+      + pfParticleNetFromMiniAODAK4PuppiCentralJetTagsAll
+      + pfParticleNetFromMiniAODAK4PuppiForwardJetTagsAll
+      + pfUnifiedParticleTransformerAK4JetTagsAll
+      + pfUnifiedParticleTransformerAK4V1JetTagsAll
+    )
+
+    # AK8 taggers
+    from RecoBTag.ONNXRuntime.pfParticleNet_cff import _pfParticleNetJetTagsAll as pfParticleNetJetTagsAll
+    from RecoBTag.ONNXRuntime.pfParticleNet_cff import _pfParticleNetMassRegressionOutputs as pfParticleNetMassRegressionOutputs
+    from RecoBTag.ONNXRuntime.pfParticleNet_cff import _pfParticleNetMassCorrelatedJetTagsAll as pfParticleNetMassCorrelatedJetTagsAll
+    from RecoBTag.ONNXRuntime.pfParticleNetFromMiniAODAK8_cff import _pfParticleNetFromMiniAODAK8JetTagsAll as pfParticleNetFromMiniAODAK8JetTagsAll
+    from RecoBTag.ONNXRuntime.pfGlobalParticleTransformerAK8_cff import _pfGlobalParticleTransformerAK8JetTagsAll as pfGlobalParticleTransformerAK8JetTagsAll
+    btagDiscriminatorsAK8 = cms.PSet(names = cms.vstring(
+        pfParticleNetMassCorrelatedJetTagsAll+
+        pfGlobalParticleTransformerAK8JetTagsAll+
+        pfParticleNetFromMiniAODAK8JetTagsAll+
+        pfParticleNetJetTagsAll+
+        pfParticleNetMassRegressionOutputs
+      )
+    )
+
+    # Do this to switch off "nanoAOD_addDeepInfoAK8()" function below.
+    # We
+    run2_nanoAOD_106Xv2.toModify(
+        nanoAOD_addDeepInfoAK8_switch,
+        nanoAOD_addParticleNetMassLegacy_switch = False,
+        nanoAOD_addParticleNet_switch = False,
+        nanoAOD_addGlobalParT_switch = False,
+    )
+
+    # Subjets
+    btagDiscriminatorsAK8Subjets = cms.PSet(names = cms.vstring(
+            'pfDeepFlavourJetTags:probb',
+            'pfDeepFlavourJetTags:probbb',
+            'pfDeepFlavourJetTags:problepb',
+            'pfUnifiedParticleTransformerAK4DiscriminatorsJetTags:BvsAll'
+        )
+    )
+
+    from PhysicsTools.PatAlgos.tools.puppiJetMETReclusteringFromMiniAOD_cff import setupPuppiAK4AK8METReclustering
+
+    runOnMC=True
+    if hasattr(process,"NANOEDMAODoutput") or hasattr(process,"NANOAODoutput"):
+       runOnMC = False
+
+    #
+    # Recluster GenJets. Set minimum pt to be 5 GeV
+    #
+    if runOnMC:
+        genJetPtMin = 5
+        process.packedGenParticlesForJetsNoNu = cms.EDFilter("CandPtrSelector",
+          src = cms.InputTag("packedGenParticles"),
+          cut = cms.string("abs(pdgId) != 12 && abs(pdgId) != 14 && abs(pdgId) != 16"),
+        )
+        process.jetMCTask.add(process.packedGenParticlesForJetsNoNu)
+        process.slimmedGenJets = ak4GenJets.clone(
+           src           = "packedGenParticlesForJetsNoNu",
+           jetAlgorithm  = cms.string("AntiKt"),
+           rParam        = cms.double(0.4),
+        )
+        process.slimmedGenJets.jetPtMin = genJetPtMin
+        process.jetMCTask.add(process.slimmedGenJets)
+        process.genJetTable.cut = "pt > {genJetPtMin}".format(genJetPtMin=genJetPtMin) # Overwrite table
+        #
+        process.jetMCTask.add(process.genJetFlavourAssociation)
+        process.genJetFlavourTable.jetFlavourInfos="genJetFlavourAssociation"
+
+    process = setupPuppiAK4AK8METReclustering(process,
+        runOnMC=runOnMC,
+        useExistingWeights=False, # if False, recalculate puppi weights
+        reclusterAK4MET=True,
+        reclusterAK8=True,
+        btagDiscriminatorsAK4=btagDiscriminatorsAK4,
+        btagDiscriminatorsAK8=btagDiscriminatorsAK8,
+        btagDiscriminatorsAK8Subjets=btagDiscriminatorsAK8Subjets
+    )
+    #
+    process.selectedPatJetsPuppi.cut = "pt >= 8"
+    process.finalJetsPuppi.cut = "pt >= 8"
+    if runOnMC:
+        genJetMatchCut = "genJetFwdRef().backRef().isNonnull() && genJetFwdRef().backRef().pt() > 5"
+        finalJetsPuppiCut = " (pt >= 8) || ((pt < 8) && ({genJetMatchCut}))".format(genJetMatchCut=genJetMatchCut)
+        process.finalJetsPuppi.cut = finalJetsPuppiCut
+
+    # Must do this here
+    process.load("RecoJets.JetProducers.PileupJetID_cfi")
+    process.jetPuppiTask.add(process.pileUpJetIDPuppiTask)
+    process.pileupJetIdPuppi.srcConstituentWeights = "packedpuppi"
+    process.pileupJetIdPuppi.vertexes = "offlineSlimmedPrimaryVertices"
+    process.patJetsPuppi.userData.userFloats.src += [cms.InputTag("pileupJetIdPuppi:fullDiscriminant")]
+    process.patJetsPuppi.userData.userInts.src += [cms.InputTag("pileupJetIdPuppi:fullId")]
+
+    ##############################################################################
+    ##############################################################################
+    ##############################################################################
+
     process = nanoAOD_activateVID(process)
 
-    run2_nanoAOD_106Xv2.toModify(
-        nanoAOD_addDeepInfoAK4CHS_switch, nanoAOD_addParticleNet_switch=True,
-        nanoAOD_addRobustParTAK4Tag_switch=False,
-        nanoAOD_addUnifiedParTAK4Tag_switch=True,
-    )
-  
+    # run2_nanoAOD_106Xv2.toModify(
+    #     nanoAOD_addDeepInfoAK4CHS_switch,
+    #     nanoAOD_addParticleNet_switch=True,
+    #     nanoAOD_addRobustParTAK4Tag_switch=False,
+    #     nanoAOD_addUnifiedParTAK4Tag_switch=True,
+    # )
+
     # This function is defined in jetsAK4_Puppi_cff.py
     process = nanoAOD_addDeepInfoAK4(process,
         addParticleNet=nanoAOD_addDeepInfoAK4_switch.nanoAOD_addParticleNet_switch,
