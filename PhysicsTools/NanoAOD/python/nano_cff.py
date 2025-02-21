@@ -306,6 +306,7 @@ def nanoAOD_customizeCommon(process):
         btagDiscriminatorsAK8Subjets=btagDiscriminatorsAK8Subjets
     )
     #
+    process.ak4PFJetsPuppi.jetPtMin = 0 # Remove cut just after reclustering ala JMENano
     process.selectedPatJetsPuppi.cut = "pt >= 8"
     process.finalJetsPuppi.cut = "pt >= 8"
     if runOnMC:
