@@ -2,6 +2,7 @@ import FWCore.ParameterSet.Config as cms
 
 from PhysicsTools.NanoAOD.common_cff import *
 from PhysicsTools.NanoAOD.simpleCandidateFlatTableProducer_cfi import simpleCandidateFlatTableProducer
+from PhysicsTools.NanoAOD.simpleGenJetFlatTableProducer_cfi import simpleGenJetFlatTableProducer
 from PhysicsTools.NanoAOD.simplePATJetFlatTableProducer_cfi import simplePATJetFlatTableProducer
 from PhysicsTools.NanoAOD.jetsAK8_cff import fatJetTable as _fatJetTable
 from PhysicsTools.NanoAOD.jetsAK8_cff import subJetTable as _subJetTable
@@ -17,13 +18,24 @@ jetMCTable = simplePATJetFlatTableProducer.clone(
         genJetIdx = Var("?genJetFwdRef().backRef().isNonnull() && genJetFwdRef().backRef().pt() > 10.?genJetFwdRef().backRef().key():-1", "int16", doc="index of matched gen jet"),
     )
 )
-genJetTable = simpleCandidateFlatTableProducer.clone(
+
+genJetTable = simpleGenJetFlatTableProducer.clone(
     src = cms.InputTag("slimmedGenJets"),
     cut = cms.string("pt > 10"),
     name = cms.string("GenJet"),
     doc  = cms.string("slimmedGenJets, i.e. ak4 Jets made with visible genparticles"),
     variables = cms.PSet(P4Vars,
-	#anything else?
+        nConstituents = Var("numberOfDaughters()","uint8",doc="Number of particles in the jet"),
+        chHEF  = Var("chargedHadronEnergy()/energy()", float, doc="charged Hadron Energy Fraction", precision=-1),
+        neHEF  = Var("neutralHadronEnergy()/energy()", float, doc="neutral Hadron Energy Fraction", precision=-1),
+        chEmEF = Var("chargedEmEnergy()/energy()", float, doc="charged EM Energy Fraction", precision=-1),
+        neEmEF = Var("neutralEmEnergy()/energy()", float, doc="neutral EM Energy Fraction", precision=-1),
+        muEF   = Var("muonEnergy()/energy()", float, doc="muon Energy", precision=-1),
+        chHadMultiplicity = Var("chargedHadronMultiplicity", "int16", doc="number of charged hadrons in the jet"),
+        neHadMultiplicity = Var("neutralHadronMultiplicity", "int16", doc="number of neutral hadrons in the jet"),
+        chEmMultiplicity  = Var("chargedEmMultiplicity", "int16", doc="number of charged EM particles in the jet"),
+        neEmMultiplicity  = Var("neutralEmMultiplicity", "int16", doc="number of neutral EM particles in the jet"),
+        muMultiplicity    = Var("muonMultiplicity", "int16", doc="number of muons in the jet"),
     )
 )
 

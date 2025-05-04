@@ -18,6 +18,16 @@ finalJetsAK4PFConstituents = cms.EDProducer("PatJetConstituentPtrSelector",
     cut = cms.string("")
 )
 
+
+packedPFCandidatesPtr =  cms.EDProducer("PackedCandidateToPackedCandidatePtr",
+    src = cms.InputTag("packedPFCandidates"),
+)
+
+pfChargedHadronSelected = cms.EDFilter("PATPackedCandidatePtrSelector",
+  src = cms.InputTag("packedPFCandidatesPtr"),
+  cut = cms.string("isIsolatedChargedHadron()"),
+)
+
 ##############################################################
 # Setup PF candidates table
 ##############################################################
@@ -25,6 +35,7 @@ finalPFCandidates = cms.EDProducer("PackedCandidatePtrMerger",
     src = cms.VInputTag(
         cms.InputTag("finalJetsAK8PFConstituents","constituents"),
         cms.InputTag("finalJetsAK4PFConstituents","constituents"),
+        cms.InputTag("pfChargedHadronSelected"),
     ),
     skipNulls = cms.bool(True),
     warnOnSkip = cms.bool(True)
@@ -73,7 +84,6 @@ pfCandidatesTable.variables.eta.precision = -1
 pfCandidatesTable.variables.phi.precision = -1
 pfCandidatesTable.variables.mass.precision = -1
 
-
 #
 # PackedCandidateExtTableProducer is currently setup for
 # AOD->Nano workflow because we want reference to origina reco::PFCandidate
@@ -81,20 +91,38 @@ pfCandidatesTable.variables.mass.precision = -1
 pfCandidatesExtTable = cms.EDProducer("PackedCandidateExtTableProducer",
     srcPFCandidates = pfCandidatesTable.src,
     packedPFCandidates = cms.InputTag("packedPFCandidates"),
-    PFClustersHCAL = cms.InputTag("particleFlowClusterHCAL"),
-    PFRecHitsHBHE = cms.InputTag("particleFlowRecHitHBHE"),
-    PFClustersECAL = cms.InputTag("particleFlowClusterECAL"),
-    PFClustersPS = cms.InputTag("particleFlowClusterPS"),
-    savePFClustersHCAL = cms.bool(True),
-    savePFRecHitsHBHE = cms.bool(True),
-    savePFClustersECAL = cms.bool(True),
-    savePFClustersPS = cms.bool(True),
+    # PFClustersHCAL = cms.InputTag("particleFlowClusterHCAL"),
+    # PFRecHitsHBHE = cms.InputTag("particleFlowRecHitHBHE"),
+    # PFClustersECAL = cms.InputTag("particleFlowClusterECAL"),
+    # PFClustersPS = cms.InputTag("particleFlowClusterPS"),
+    # savePFClustersHCAL = cms.bool(True),
+    # savePFRecHitsHBHE = cms.bool(True),
+    # savePFClustersECAL = cms.bool(True),
+    # savePFClustersPS = cms.bool(True),
     name = pfCandidatesTable.name,
     srcWeightsV = cms.VInputTag(),
     weightNamesV = cms.vstring(),
     weightDocsV = cms.vstring(),
     weightPrecision = cms.int32(-1),
     saveFromPVvertexRef = cms.bool(True)
+)
+
+customPFChargedHadronCandidateTable =  cms.EDProducer("SimplePATCandidateFlatTableProducer",
+    src = cms.InputTag("pfChargedHadronSelected"),
+    cut = cms.string(""), #we should not filter
+    name = cms.string("IsoChHadPFCand"),
+    doc = cms.string("Isolated Charged Hadron PF candidates"),
+    singleton = cms.bool(False), # the number of entries is variable
+    extension = cms.bool(False), # this is the extension table for the AK8 constituents
+    variables = cms.PSet()
+)
+
+customPFChargedHadronCandidateExtTable = cms.EDProducer("SimpleSelectedCandidateTableProducer",
+    name = cms.string("IsoChHadPFCand"),
+    candIdxName = cms.string("pfCandIdx"),
+    candIdxDoc = cms.string("Index in PFCand table"),
+    candidatesMain = pfCandidatesTable.src,
+    candidatesSelected = customPFChargedHadronCandidateTable.src,
 )
 
 ##############################################################
@@ -120,5 +148,9 @@ finalJetsAK4ConstituentsTable = cms.EDProducer("SimplePatJetConstituentTableProd
   jetConstCut = cms.string("")
 )
 
-jetConstituentsTask = cms.Task(finalJetsAK8PFConstituents,finalJetsAK4PFConstituents)
-jetConstituentsTablesTask = cms.Task(finalPFCandidates,pfCandidatesTable,pfCandidatesExtTable,finalJetsAK8ConstituentsTable,finalJetsAK4ConstituentsTable)
+
+# jetConstituentsTask = cms.Task(finalJetsAK8PFConstituents,finalJetsAK4PFConstituents)
+# jetConstituentsTablesTask = cms.Task(finalPFCandidates,pfCandidatesTable,pfCandidatesExtTable,finalJetsAK8ConstituentsTable,finalJetsAK4ConstituentsTable)
+
+jetConstituentsTask = cms.Task(finalJetsAK8PFConstituents,finalJetsAK4PFConstituents,packedPFCandidatesPtr,pfChargedHadronSelected)
+jetConstituentsTablesTask = cms.Task(finalPFCandidates,pfCandidatesTable,pfCandidatesExtTable,finalJetsAK8ConstituentsTable,finalJetsAK4ConstituentsTable,customPFChargedHadronCandidateTable,customPFChargedHadronCandidateExtTable)

@@ -15,6 +15,9 @@ typedef SimpleFlatTableProducer<pat::Photon> SimplePATPhotonFlatTableProducer;
 #include "DataFormats/PatCandidates/interface/Jet.h"
 typedef SimpleFlatTableProducer<pat::Jet> SimplePATJetFlatTableProducer;
 
+#include "DataFormats/JetReco/interface/GenJet.h"
+typedef SimpleFlatTableProducer<reco::GenJet> SimpleGenJetFlatTableProducer;
+
 #include "DataFormats/PatCandidates/interface/IsolatedTrack.h"
 typedef SimpleFlatTableProducer<pat::IsolatedTrack> SimplePATIsolatedTrackFlatTableProducer;
 
@@ -23,6 +26,9 @@ typedef SimpleFlatTableProducer<pat::GenericParticle> SimplePATGenericParticleFl
 
 #include "DataFormats/PatCandidates/interface/PackedCandidate.h"
 typedef SimpleFlatTableProducer<pat::PackedCandidate> SimplePATCandidateFlatTableProducer;
+
+#include "DataFormats/PatCandidates/interface/MET.h"
+typedef SimpleFlatTableProducer<pat::MET> SimplePATMETFlatTableProducer;
 
 #include "DataFormats/PatCandidates/interface/MET.h"
 typedef SimpleFlatTableProducer<pat::MET> SimplePATMETFlatTableProducer;
@@ -41,6 +47,7 @@ DEFINE_FWK_MODULE(SimplePATMuonFlatTableProducer);
 DEFINE_FWK_MODULE(SimplePATTauFlatTableProducer);
 DEFINE_FWK_MODULE(SimplePATPhotonFlatTableProducer);
 DEFINE_FWK_MODULE(SimplePATJetFlatTableProducer);
+DEFINE_FWK_MODULE(SimpleGenJetFlatTableProducer);
 DEFINE_FWK_MODULE(SimplePATIsolatedTrackFlatTableProducer);
 DEFINE_FWK_MODULE(SimplePATGenericParticleFlatTableProducer);
 DEFINE_FWK_MODULE(SimplePATCandidateFlatTableProducer);
