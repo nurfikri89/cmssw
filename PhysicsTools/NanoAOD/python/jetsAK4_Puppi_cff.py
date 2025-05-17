@@ -26,7 +26,6 @@ updatedJetsPuppi = updatedPatJets.clone(
     jetCorrFactorsSource=cms.VInputTag(cms.InputTag("jetPuppiCorrFactorsNano") ),
 )
 
-
 #HF shower shape recomputation
 from RecoJets.JetProducers.hfJetShowerShape_cfi import hfJetShowerShape
 hfJetPuppiShowerShapeforNanoAOD = hfJetShowerShape.clone(jets="updatedJetsPuppi",vertices="offlineSlimmedPrimaryVertices")
@@ -45,7 +44,8 @@ updatedJetsPuppiWithUserData = cms.EDProducer("PATJetUserDataEmbedder",
 
 finalJetsPuppi = cms.EDFilter("PATJetRefSelector",
     src = cms.InputTag("updatedJetsPuppiWithUserData"),
-    cut = cms.string("pt > 15")
+    # cut = cms.string("pt > 15")
+    cut = cms.string("pt > 0")
 )
 
 ##################### Tables for final output and docs ##########################
@@ -105,14 +105,22 @@ jetPuppiTable = simplePATJetFlatTableProducer.clone(
         nConstituents = Var("numberOfDaughters()","uint8",doc="Number of particles in the jet"),
         chMultiplicity = Var("chargedMultiplicity()","uint8",doc="(Puppi-weighted) Number of charged particles in the jet"),
         neMultiplicity = Var("neutralMultiplicity()","uint8",doc="(Puppi-weighted) Number of neutral particles in the jet"),
-        rawFactor = Var("1.-jecFactor('Uncorrected')",float,doc="1 - Factor to get back to raw pT",precision=6),
-        chHEF = Var("chargedHadronEnergyFraction()", float, doc="charged Hadron Energy Fraction", precision=10),
-        neHEF = Var("neutralHadronEnergyFraction()", float, doc="neutral Hadron Energy Fraction", precision=10),
-        chEmEF = Var("chargedEmEnergyFraction()", float, doc="charged Electromagnetic Energy Fraction", precision=10),
-        neEmEF = Var("neutralEmEnergyFraction()", float, doc="neutral Electromagnetic Energy Fraction", precision=10),
-        hfHEF = Var("HFHadronEnergyFraction()",float,doc="hadronic Energy Fraction in HF",precision=10),
-        hfEmEF = Var("HFEMEnergyFraction()",float,doc="electromagnetic Energy Fraction in HF",precision=10),
-        muEF = Var("muonEnergyFraction()", float, doc="muon Energy Fraction", precision=10),
+        rawFactor = Var("1.-jecFactor('Uncorrected')",float,doc="1 - Factor to get back to raw pT",precision=-1),
+        chHEF = Var("chargedHadronEnergyFraction()", float, doc="charged Hadron Energy Fraction", precision=-1),
+        neHEF = Var("neutralHadronEnergyFraction()", float, doc="neutral Hadron Energy Fraction", precision=-1),
+        chEmEF = Var("chargedEmEnergyFraction()", float, doc="charged Electromagnetic Energy Fraction", precision=-1),
+        neEmEF = Var("neutralEmEnergyFraction()", float, doc="neutral Electromagnetic Energy Fraction", precision=-1),
+        hfHEF = Var("HFHadronEnergyFraction()",float,doc="hadronic Energy Fraction in HF",precision=-1),
+        hfEmEF = Var("HFEMEnergyFraction()",float,doc="electromagnetic Energy Fraction in HF",precision=-1),
+        muEF = Var("muonEnergyFraction()", float, doc="muon Energy Fraction", precision=-1),
+        #
+        chHadMultiplicity = Var("chargedHadronMultiplicity()","int16",doc="(Puppi-weighted) number of charged hadrons in the jet"),
+        neHadMultiplicity = Var("neutralHadronMultiplicity()","int16",doc="(Puppi-weighted) number of neutral hadrons in the jet"),
+        hfHadMultiplicity = Var("HFHadronMultiplicity()", "int16",doc="(Puppi-weighted) number of HF hadrons in the jet"),
+        hfEMMultiplicity  = Var("HFEMMultiplicity()","int16",doc="(Puppi-weighted) number of HF EMs in the jet"),
+        muMultiplicity    = Var("muonMultiplicity()","int16",doc="(Puppi-weighted) number of muons in the jet"),
+        elMultiplicity    = Var("electronMultiplicity()","int16",doc="(Puppi-weighted) number of electrons in the jet"),
+        phoMultiplicity   = Var("photonMultiplicity()","int16",doc="(Puppi-weighted) number of photons in the jet"),
     )
 )
 
@@ -129,9 +137,11 @@ run3_nanoAOD_pre142X.toModify(
     puIdDisc = None,
 )
 
-
 #jets are not as precise as muons
-jetPuppiTable.variables.pt.precision=10
+jetPuppiTable.variables.pt.precision=-1
+jetPuppiTable.variables.eta.precision=-1
+jetPuppiTable.variables.phi.precision=-1
+jetPuppiTable.variables.mass.precision=-1
 
 ##############################################################
 ## DeepInfoAK4:Start
@@ -172,7 +182,6 @@ def nanoAOD_addDeepInfoAK4(process,addParticleNet,addRobustParTAK4=False,addUnif
     return process
 
 nanoAOD_addDeepInfoAK4_switch = cms.PSet(
-
     nanoAOD_addParticleNet_switch = cms.untracked.bool(False),
     nanoAOD_addRobustParTAK4Tag_switch = cms.untracked.bool(False),
     nanoAOD_addUnifiedParTAK4Tag_switch = cms.untracked.bool(False)
@@ -209,21 +218,21 @@ corrT1METJetPuppiTable = simplePATJetFlatTableProducer.clone(
     name = cms.string("CorrT1METJet"),
     doc  = cms.string("Additional low-pt ak4 Puppi jets for Type-1 MET re-correction"),
     variables = cms.PSet(
-        rawPt = Var("pt()*jecFactor('Uncorrected')",float,precision=10),
-        rawMass = Var("mass()*jecFactor('Uncorrected')",float,precision=10),
-        eta  = Var("eta",  float,precision=12),
-        phi = Var("phi", float, precision=12),
+        rawPt = Var("pt()*jecFactor('Uncorrected')",float,precision=-1),
+        rawMass = Var("mass()*jecFactor('Uncorrected')",float,precision=-1),
+        eta  = Var("eta",  float,precision=-1),
+        phi = Var("phi", float, precision=-1),
         area = Var("jetArea()", float, doc="jet catchment area, for JECs",precision=10),
-        EmEF = Var("chargedEmEnergyFraction()+neutralEmEnergyFraction()", float, doc="charged+neutral Electromagnetic Energy Fraction", precision=10),
+        EmEF = Var("chargedEmEnergyFraction()+neutralEmEnergyFraction()", float, doc="charged+neutral Electromagnetic Energy Fraction", precision=-1),
     )
 )
 
-corrT1METJetPuppiTable.variables.muonSubtrFactor = Var("1-userFloat('muonSubtrRawPt')/(pt()*jecFactor('Uncorrected'))",float,doc="1-(muon-subtracted raw pt)/(raw pt)",precision=6)
-corrT1METJetPuppiTable.variables.muonSubtrDeltaEta = Var("userFloat('muonSubtrRawEta') - eta()",float,doc="muon-subtracted raw eta - eta",precision=10)
-corrT1METJetPuppiTable.variables.muonSubtrDeltaPhi = Var("userFloat('muonSubtrRawPhi') - phi()",float,doc="muon-subtracted raw phi - phi",precision=10)
-jetPuppiTable.variables.muonSubtrFactor = Var("1-userFloat('muonSubtrRawPt')/(pt()*jecFactor('Uncorrected'))",float,doc="1-(muon-subtracted raw pt)/(raw pt)",precision=6)
-jetPuppiTable.variables.muonSubtrDeltaEta = Var("userFloat('muonSubtrRawEta') - eta()",float,doc="muon-subtracted raw eta - eta",precision=10)
-jetPuppiTable.variables.muonSubtrDeltaPhi = Var("userFloat('muonSubtrRawPhi') - phi()",float,doc="muon-subtracted raw phi - phi",precision=10)
+corrT1METJetPuppiTable.variables.muonSubtrFactor = Var("1-userFloat('muonSubtrRawPt')/(pt()*jecFactor('Uncorrected'))",float,doc="1-(muon-subtracted raw pt)/(raw pt)",precision=-1)
+corrT1METJetPuppiTable.variables.muonSubtrDeltaEta = Var("userFloat('muonSubtrRawEta') - eta()",float,doc="muon-subtracted raw eta - eta",precision=-1)
+corrT1METJetPuppiTable.variables.muonSubtrDeltaPhi = Var("userFloat('muonSubtrRawPhi') - phi()",float,doc="muon-subtracted raw phi - phi",precision=-1)
+jetPuppiTable.variables.muonSubtrFactor = Var("1-userFloat('muonSubtrRawPt')/(pt()*jecFactor('Uncorrected'))",float,doc="1-(muon-subtracted raw pt)/(raw pt)",precision=-1)
+jetPuppiTable.variables.muonSubtrDeltaEta = Var("userFloat('muonSubtrRawEta') - eta()",float,doc="muon-subtracted raw eta - eta",precision=-1)
+jetPuppiTable.variables.muonSubtrDeltaPhi = Var("userFloat('muonSubtrRawPhi') - phi()",float,doc="muon-subtracted raw phi - phi",precision=-1)
 
 jetPuppiForMETTask =  cms.Task(basicJetsPuppiForMetForT1METNano,corrT1METJetPuppiTable)
 

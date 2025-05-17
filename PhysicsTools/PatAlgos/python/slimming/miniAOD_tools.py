@@ -421,8 +421,9 @@ def miniAOD_customizeCommon(process):
         process.patJetsPuppi.userData.userFloats.src += [cms.InputTag("pileupJetIdPuppi:fullDiscriminant")]
         process.patJetsPuppi.userData.userInts.src += [cms.InputTag("pileupJetIdPuppi:fullId")]
 
-        process.selectedPatJetsPuppi.cut = cms.string("pt > 10")
-    
+        # process.selectedPatJetsPuppi.cut = cms.string("pt > 10")
+        process.selectedPatJetsPuppi.cut = cms.string("pt > 0") # Store all puppi jets from AOD.
+
         from PhysicsTools.PatAlgos.slimming.applyDeepBtagging_cff import applyDeepBtagging
         applyDeepBtagging( process )
 
