@@ -1,7 +1,19 @@
 import FWCore.ParameterSet.Config as cms
+from PhysicsTools.NanoAOD.common_cff import Var, CandVars
 
 from PhysicsTools.NanoAOD.common_cff import *
 from PhysicsTools.NanoAOD.jetsAK8_cff import fatJetTable as _fatJetTable
+from PhysicsTools.NanoAOD.jetsAK4_Puppi_cff import jetPuppiTable as _jetPuppiTable
+from PhysicsTools.NanoAOD.jetsAK4_CHS_simple_cff import jetTable as _jetTable
+
+
+from PhysicsTools.NanoAOD.muons_cff     import muonTable as _muonTable
+from PhysicsTools.NanoAOD.electrons_cff import electronTable as _electronTable
+from PhysicsTools.NanoAOD.photons_cff   import photonTable as _photonTable
+from PhysicsTools.NanoAOD.taus_cff      import tauTable as _tauTable
+
+
+from CommonTools.ParticleFlow.pfCHS_cff import pfCHS
 
 ##############################################################
 # Take AK8 jets and collect their PF constituents
@@ -10,17 +22,99 @@ finalJetsAK8PFConstituents = cms.EDProducer("PatJetConstituentPtrSelector",
     src = _fatJetTable.src,
     cut = cms.string("abs(eta) <= 2.5")
 )
-
 selectedFinalJetsAK8PFConstituents = cms.EDFilter("PATPackedCandidatePtrSelector",
     src = cms.InputTag("finalJetsAK8PFConstituents", "constituents"),
     cut = cms.string("")
+)
+##############################################################
+# Take AK4 jets and collect their PF constituents
+###############################################################
+finalJetsAK4PFConstituents = cms.EDProducer("PatJetConstituentPtrSelector",
+    src = _jetPuppiTable.src,
+    cut = cms.string("")
+)
+
+selectedFinalJetsAK4PFConstituents = cms.EDFilter("PATPackedCandidatePtrSelector",
+    src = cms.InputTag("finalJetsAK4PFConstituents", "constituents"),
+    cut = cms.string("")
+)
+
+##############################################################
+# Take AK4 CHS jets and collect their PF constituents
+###############################################################
+####TEMP CHS
+#### finalJetsAK4CHSPFConstituents = cms.EDProducer("PatJetConstituentPtrSelector",
+####     src = _jetTable.src,
+####     cut = cms.string("")
+#### )
+
+####TEMP CHS
+#### selectedFinalJetsAK4CHSPFConstituents = cms.EDFilter("PATPackedCandidatePtrSelector",
+####     src = cms.InputTag("finalJetsAK4CHSPFConstituents", "constituents"),
+####     cut = cms.string("")
+#### )
+
+##############################################################
+# Collect Tau signalCands and isolationCands
+###############################################################
+finalTausConstituents = cms.EDProducer("PatTauConstituentSelector",
+src = _tauTable.src,
+cut = cms.string("") # Store all PF candidates for all taus
+)
+
+##############################################################
+# Electrons, Photons and Muons
+###############################################################
+finalElectronsPFCandsConstituents = cms.EDProducer("PatElectronPFCandSelector",
+src = _electronTable.src,
+cut = cms.string("") # Store all PF candidates
+)
+
+finalPhotonsPFCandsConstituents = cms.EDProducer("PatPhotonPFCandSelector",
+src = _photonTable.src,
+cut = cms.string("") # Store all PF candidates
+)
+
+finalMuonsPFCandsConstituents = cms.EDProducer("PatMuonPFCandSelector",
+src = _muonTable.src,
+cut = cms.string("") # Store all PF candidates
+)
+
+
+###############################################################################
+# Take packedPFCandidates,changed to Ptr and choose IsolatedChargedHadron()
+##############################################################################
+packedPFCandidatesPtr =  cms.EDProducer("PackedCandidateToPackedCandidatePtr",
+    src = cms.InputTag("packedPFCandidates"),
+)
+
+pfChargedHadronSelected = cms.EDFilter("PATPackedCandidatePtrSelector",
+  src = cms.InputTag("packedPFCandidatesPtr"),
+  cut = cms.string("isIsolatedChargedHadron()"),
+)
+
+pfChargedHadronSelectedIsoCands = cms.EDProducer("PackedPFCandIsoProducer",
+  packedPFCandidatesSelected = cms.InputTag("pfChargedHadronSelected"),
+  packedPFCandidates = cms.InputTag("packedPFCandidates"),
+  maxDeltaR = cms.double(0.4)
 )
 
 ##############################################################
 # Setup PF candidates table
 ##############################################################
 finalPFCandidates = cms.EDProducer("PackedCandidatePtrMerger",
-    src = cms.VInputTag(cms.InputTag("selectedFinalJetsAK8PFConstituents")),
+    src = cms.VInputTag(
+        cms.InputTag("selectedFinalJetsAK8PFConstituents"),
+        cms.InputTag("selectedFinalJetsAK4PFConstituents"),
+        cms.InputTag("pfChargedHadronSelected"),
+        cms.InputTag("pfChargedHadronSelectedIsoCands"),
+        cms.InputTag("finalTausConstituents", "constituents"),
+        cms.InputTag("finalElectronsPFCandsConstituents", "constituents"),
+        cms.InputTag("finalPhotonsPFCandsConstituents", "constituents"),
+        cms.InputTag("finalMuonsPFCandsConstituents", "constituents"),
+        #####cms.InputTag("selectedFinalJetsAK4CHSPFConstituents"),#TEMP CHS
+        ####cms.InputTag("packedPFCandidatesPtr"),
+    ),
     skipNulls = cms.bool(True),
     warnOnSkip = cms.bool(True)
 )
@@ -29,16 +123,91 @@ pfCandidatesTable = cms.EDProducer("SimplePATCandidateFlatTableProducer",
     src = cms.InputTag("finalPFCandidates"),
     cut = cms.string(""),
     name = cms.string("PFCand"),
-    doc = cms.string("PF candidate constituents of AK8 puppi jets (FatJet) with |eta| <= 2.5"),
+    doc = cms.string("PF candidate constituents of AK8 puppi jets (FatJet) with |eta| <= 2.5, AK4 puppi jets (Jet), AK4 CHS jets (JetCHS) and packedCands with isIsolatedChargedHadron()"),
     singleton = cms.bool(False),
     extension = cms.bool(False),
-    variables = cms.PSet(
-        pt = Var("pt * puppiWeight()", float, doc="Puppi-weighted pt", precision=10),
-        mass = Var("mass * puppiWeight()", float, doc="Puppi-weighted mass", precision=10),
-        eta = Var("eta", float, precision=12),
-        phi = Var("phi", float, precision=12),
-        pdgId = Var("pdgId", int, doc="PF candidate type (+/-211 = ChgHad, 130 = NeuHad, 22 = Photon, +/-11 = Electron, +/-13 = Muon, 1 = HFHad, 2 = HFEM)")
+    variables = cms.PSet(CandVars,
+      energy = Var("energy()", float, doc="energy",precision=-1),
+      puppiWeight = Var("puppiWeight()", float, doc="Puppi weight",precision=-1),
+      puppiWeightNoLep = Var("puppiWeightNoLep()", float, doc="Puppi weight removing leptons",precision=-1),
+      passCHS = Var(pfCHS.cut.value(), bool, doc=pfCHS.cut.value()),
+      isIsolatedChargedHadron = Var("isIsolatedChargedHadron()", bool, doc="isIsolatedChargedHadron()"),
+      trkQuality = Var("?hasTrackDetails()?bestTrack().qualityMask():0", int, doc="track quality mask"),
+      trkHighPurity = Var("trackHighPurity()", bool, doc="is trackHighPurity"),
+      trkAlgo = Var("?hasTrackDetails()?bestTrack().algo():-1", int, doc="track algorithm"),
+      trkP = Var("?hasTrackDetails()?bestTrack().p():-1", float, doc="track momemtum", precision=-1),
+      trkPt = Var("?hasTrackDetails()?bestTrack().pt():-1", float, doc="track pt", precision=-1),
+      trkEta = Var("?hasTrackDetails()?bestTrack().eta():-1", float, doc="track eta", precision=-1),
+      trkPhi = Var("?hasTrackDetails()?bestTrack().phi():-1", float, doc="track phi", precision=-1),
+      dz = Var("?hasTrackDetails()?dz():-1", float, doc="dz", precision=15),
+      dzErr = Var("?hasTrackDetails()?dzError():-1", float, doc="dz err",precision=15),
+      d0 = Var("?hasTrackDetails()?dxy():-1", float, doc="dxy", precision=15),
+      d0Err = Var("?hasTrackDetails()?dxyError():-1", float, doc="dxy err", precision=15),
+      vx = Var("?hasTrackDetails()?vx():-1", float, doc="vx", precision=15),
+      vy = Var("?hasTrackDetails()?vy():-1", float, doc="vy", precision=15),
+      vz = Var("?hasTrackDetails()?vy():-1", float, doc="vz", precision=15),
+      nHits = Var("numberOfHits()", int, doc="numberOfHits()"),
+      nPixelHits = Var("numberOfPixelHits()", int, doc="numberOfPixelHits()"),
+      lostInnerHits = Var("lostInnerHits()", int, doc="lost inner hits. -1: validHitInFirstPixelBarrelLayer, 0: noLostInnerHits, 1: oneLostInnerHit, 2: moreLostInnerHits"),
+      lostOuterHits = Var("?hasTrackDetails()?bestTrack().hitPattern().numberOfLostHits('MISSING_OUTER_HITS'):0", int, doc="lost outer hits"),
+      pixelLayersWithMeasurement = Var("pixelLayersWithMeasurement()", int, doc="pixelLayersWithMeasurement()"),
+      stripLayersWithMeasurement = Var("stripLayersWithMeasurement()", int, doc="stripLayersWithMeasurement()"),
+      trkChi2 = Var("?hasTrackDetails()?bestTrack().normalizedChi2():-1", float, doc="normalized trk chi2", precision=15),
+      pvAssocQuality = Var("pvAssociationQuality()", int, doc="primary vertex association quality (NotReconstructedPrimary = 0, OtherDeltaZ = 1, CompatibilityBTag = 4, CompatibilityDz = 5, UsedInFitLoose = 6, UsedInFitTight = 7)"),
+      vertexRef = Var("?vertexRef().isNonnull()?vertexRef().key():-1", int, doc="vertexRef().key()"),
+      fromPV0 = Var("fromPV()", int, doc="PV0 association (NoPV = 0, PVLoose = 1, PVTight = 2, PVUsedInFit = 3)"),
+      vtxChi2 = Var("?hasTrackDetails()?vertexChi2():-1", float, doc="vertex chi2",precision=15),
+      isStandAloneMuon = Var("isStandAloneMuon()", bool, doc="isStandAloneMuon()"),
+      isGlobalMuon = Var("isGlobalMuon()", bool, doc="isGlobalMuon()"),
+      isGoodEgamma = Var("isGoodEgamma()", bool, doc="isGoodEgamma()"),
   )
+)
+
+pfCandidatesTable.variables.pt.precision = -1
+pfCandidatesTable.variables.eta.precision = -1
+pfCandidatesTable.variables.phi.precision = -1
+pfCandidatesTable.variables.mass.precision = -1
+pfCandidatesTable.variables.pdgId.doc = "PF candidate type (+/-211 = ChgHad, 130 = NeuHad, 22 = Photon, +/-11 = Electron, +/-13 = Muon, 1 = HFHad, 2 = HFEM)"
+
+#
+# PackedCandidateExtTableProducer is currently setup for
+# AOD->Nano workflow because we want reference to original reco::PFCandidate
+#
+pfCandidatesExtTable = cms.EDProducer("PackedCandidateExtTableProducer",
+    srcPFCandidates = pfCandidatesTable.src,
+    packedPFCandidates = cms.InputTag("packedPFCandidates"),
+    # PFClustersHCAL = cms.InputTag("particleFlowClusterHCAL"),
+    # PFRecHitsHBHE = cms.InputTag("particleFlowRecHitHBHE"),
+    # PFClustersECAL = cms.InputTag("particleFlowClusterECAL"),
+    # PFClustersPS = cms.InputTag("particleFlowClusterPS"),
+    # savePFClustersHCAL = cms.bool(True),
+    # savePFRecHitsHBHE = cms.bool(True),
+    # savePFClustersECAL = cms.bool(True),
+    # savePFClustersPS = cms.bool(True),
+    name = pfCandidatesTable.name,
+    srcWeightsV = cms.VInputTag(),
+    weightNamesV = cms.vstring(),
+    weightDocsV = cms.vstring(),
+    weightPrecision = cms.int32(-1),
+    saveFromPVvertexRef = cms.bool(True)
+)
+
+customPFChargedHadronCandidateTable =  cms.EDProducer("SimplePATCandidateFlatTableProducer",
+    src = cms.InputTag("pfChargedHadronSelected"),
+    cut = cms.string(""), #we should not filter
+    name = cms.string("IsoChHadPFCand"),
+    doc = cms.string("Isolated Charged Hadron PF candidates"),
+    singleton = cms.bool(False), # the number of entries is variable
+    extension = cms.bool(False), # this is the extension table for the AK8 constituents
+    variables = cms.PSet()
+)
+
+customPFChargedHadronCandidateExtTable = cms.EDProducer("SimpleSelectedCandidateTableProducer",
+    name = cms.string("IsoChHadPFCand"),
+    candIdxName = cms.string("pfCandIdx"),
+    candIdxDoc = cms.string("Index in PFCand table"),
+    candidatesMain = pfCandidatesTable.src,
+    candidatesSelected = customPFChargedHadronCandidateTable.src,
 )
 
 ##############################################################
@@ -54,9 +223,98 @@ finalJetsAK8ConstituentsTable = cms.EDProducer("SimplePatJetConstituentTableProd
   jetConstCut = selectedFinalJetsAK8PFConstituents.cut
 )
 
-jetConstituentsTask = cms.Task(finalJetsAK8PFConstituents,selectedFinalJetsAK8PFConstituents)
-jetConstituentsTablesTask = cms.Task(finalPFCandidates,pfCandidatesTable,finalJetsAK8ConstituentsTable)
+finalJetsAK4ConstituentsTable = cms.EDProducer("SimplePatJetConstituentTableProducer",
+  name = cms.string(_jetPuppiTable.name.value()+"PFCand"),
+  candIdxName = cms.string("pfCandIdx"),
+  candIdxDoc = cms.string("Index in the PFCand table"),
+  candidates = pfCandidatesTable.src,
+  jets = _jetPuppiTable.src,
+  jetCut = _jetPuppiTable.cut,
+  jetConstCut = selectedFinalJetsAK4PFConstituents.cut
+)
 
+####finalJetsAK4CHSConstituentsTable = cms.EDProducer("SimplePatJetConstituentTableProducer",
+####  name = cms.string(_jetTable.name.value()+"PFCand"),
+####  candIdxName = cms.string("pfCandIdx"),
+####  candIdxDoc = cms.string("Index in the PFCand table"),
+####  candidates = pfCandidatesTable.src,
+####  jets = _jetTable.src,
+####  jetCut = _jetTable.cut,
+####  jetConstCut = selectedFinalJetsAK4CHSPFConstituents.cut
+####)
+
+##############################################################
+# Setup Tau constituents table
+##############################################################
+customTauConstituentsTable = cms.EDProducer("SimplePatTauConstituentTableProducer",
+  name = cms.string(f"{_tauTable.name.value()}PFCand"),
+  candIdxName = cms.string("pfCandIdx"),
+  candIdxDoc = cms.string("Index in the PFCand table"),
+  taus = _tauTable.src,
+  candidates = pfCandidatesTable.src,
+  tauCut = cms.string("") # No need to apply cut here.
+)
+
+
+##############################################################
+# Electrons, Photons and Muons PFCands tables
+##############################################################
+customElectronPFCandsTable = cms.EDProducer("SimplePatElectronPFCandTableProducer",
+  name = cms.string(f"{_electronTable.name.value()}PFCand"),
+  candIdxName = cms.string("pfCandIdx"),
+  candIdxDoc = cms.string("Index in the PFCand table"),
+  objects = _electronTable.src,
+  candidates = pfCandidatesTable.src,
+  objectCut = cms.string("") # No need to apply cut here.
+)
+
+customPhotonPFCandsTable = cms.EDProducer("SimplePatPhotonPFCandTableProducer",
+    name = cms.string(f"{_photonTable.name.value()}PFCand"),
+    candIdxName = cms.string("pfCandIdx"),
+    candIdxDoc = cms.string("Index in the PFCand table"),
+    objects = _photonTable.src,
+    candidates = pfCandidatesTable.src,
+    objectCut = cms.string("") # No need to apply cut here.
+)
+
+customMuonPFCandsTable = cms.EDProducer("SimplePatMuonPFCandTableProducer",
+    name = cms.string(f"{_muonTable.name.value()}PFCand"),
+    candIdxName = cms.string("pfCandIdx"),
+    candIdxDoc = cms.string("Index in the PFCand table"),
+    objects = _muonTable.src,
+    candidates = pfCandidatesTable.src,
+    objectCut = cms.string("") # No need to apply cut here.
+)
+
+jetConstituentsTask = cms.Task(
+    finalJetsAK8PFConstituents,
+    selectedFinalJetsAK8PFConstituents,
+    finalJetsAK4PFConstituents,
+    selectedFinalJetsAK4PFConstituents,
+    ####finalJetsAK4CHSPFConstituents,#TEMP CHS
+    ####selectedFinalJetsAK4CHSPFConstituents,#TEMP CHS
+    packedPFCandidatesPtr,
+    pfChargedHadronSelected,
+    pfChargedHadronSelectedIsoCands,
+    finalTausConstituents,
+    finalElectronsPFCandsConstituents,
+    finalPhotonsPFCandsConstituents,
+    finalMuonsPFCandsConstituents
+)
+jetConstituentsTablesTask = cms.Task(
+    finalPFCandidates,
+    pfCandidatesTable,
+    pfCandidatesExtTable,
+    finalJetsAK8ConstituentsTable,
+    finalJetsAK4ConstituentsTable,
+    ##### finalJetsAK4CHSConstituentsTable, #TEMP CHS
+    customPFChargedHadronCandidateTable,
+    customPFChargedHadronCandidateExtTable,
+    customTauConstituentsTable,
+    customElectronPFCandsTable,
+    customPhotonPFCandsTable,
+    customMuonPFCandsTable
+)
 
 def SaveAK4JetConstituents(process, jetCut="", jetConstCut=""):
     """
@@ -191,4 +449,3 @@ def SaveGenJetAK8Constituents(process):
 def SaveGenJetAK4AK8Constituents(process):
     process = SaveGenJetConstituents(process,addGenJetConst=True,addGenJetAK8Const=True)
     return process
-

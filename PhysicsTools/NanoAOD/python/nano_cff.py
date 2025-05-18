@@ -1,7 +1,7 @@
 import FWCore.ParameterSet.Config as cms
 from PhysicsTools.NanoAOD.common_cff import *
 from PhysicsTools.NanoAOD.nano_eras_cff import *
-from PhysicsTools.NanoAOD.jetsAK4_CHS_cff import *
+from PhysicsTools.NanoAOD.jetsAK4_CHS_simple_cff import *
 from PhysicsTools.NanoAOD.jetsAK4_Puppi_cff import *
 from PhysicsTools.NanoAOD.jetsAK8_cff import *
 from PhysicsTools.NanoAOD.jetMC_cff import *
@@ -47,9 +47,9 @@ linkedObjects = cms.EDProducer("PATObjectCrossLinker",
 )
 
 # Switch to AK4 CHS jets for Run-2
-run2_nanoAOD_ANY.toModify(
-    linkedObjects, jets="finalJets"
-)
+# run2_nanoAOD_ANY.toModify(
+#     linkedObjects, jets="finalJets"
+# )
 
 from PhysicsTools.NanoAOD.lhcInfoProducer_cfi import lhcInfoProducer
 lhcInfoTable = lhcInfoProducer.clone()
@@ -59,13 +59,17 @@ lhcInfoTable = lhcInfoProducer.clone()
 
 nanoTableTaskCommon = cms.Task(
     cms.Task(nanoMetadata),
-    jetPuppiTask, jetPuppiForMETTask, jetAK8Task, jetConstituentsTask,
+    jetPuppiTask, jetPuppiForMETTask, jetAK8Task,
+    jetTask,jetForMETTask,#TEMP for CHS
+    jetConstituentsTask,
     extraFlagsProducersTask, muonTask, tauTask, boostedTauTask,
     electronTask , lowPtElectronTask, photonTask,
     vertexTask, isoTrackTask, jetAK8LepTask,  # must be after all the leptons
     softActivityTask,
     cms.Task(linkedObjects),
-    jetPuppiTablesTask, jetAK8TablesTask, jetConstituentsTablesTask,
+    jetPuppiTablesTask, jetAK8TablesTask,
+    jetTablesTask,#TEMP for CHS
+    jetConstituentsTablesTask,
     muonTablesTask, fsrTablesTask, tauTablesTask, boostedTauTablesTask,
     electronTablesTask, lowPtElectronTablesTask, photonTablesTask,
     globalTablesTask, vertexTablesTask, metTablesTask, extraFlagsTableTask,
@@ -203,12 +207,12 @@ def nanoAOD_customizeCommon(process):
 
     process = nanoAOD_activateVID(process)
 
-    run2_nanoAOD_106Xv2.toModify(
-        nanoAOD_addDeepInfoAK4CHS_switch, nanoAOD_addParticleNet_switch=True,
-        nanoAOD_addRobustParTAK4Tag_switch=False,
-        nanoAOD_addUnifiedParTAK4Tag_switch=True,
-    )
-  
+    # run2_nanoAOD_106Xv2.toModify(
+    #     nanoAOD_addDeepInfoAK4CHS_switch, nanoAOD_addParticleNet_switch=True,
+    #     nanoAOD_addRobustParTAK4Tag_switch=False,
+    #     nanoAOD_addUnifiedParTAK4Tag_switch=True,
+    # )
+
     # This function is defined in jetsAK4_Puppi_cff.py
     process = nanoAOD_addDeepInfoAK4(process,
         addParticleNet=nanoAOD_addDeepInfoAK4_switch.nanoAOD_addParticleNet_switch,
@@ -217,13 +221,13 @@ def nanoAOD_customizeCommon(process):
     )
 
     # This function is defined in jetsAK4_CHS_cff.py
-    process = nanoAOD_addDeepInfoAK4CHS(process,
-        addDeepBTag=nanoAOD_addDeepInfoAK4CHS_switch.nanoAOD_addDeepBTag_switch,
-        addDeepFlavour=nanoAOD_addDeepInfoAK4CHS_switch.nanoAOD_addDeepFlavourTag_switch,
-        addParticleNet=nanoAOD_addDeepInfoAK4CHS_switch.nanoAOD_addParticleNet_switch,
-        addRobustParTAK4=nanoAOD_addDeepInfoAK4CHS_switch.nanoAOD_addRobustParTAK4Tag_switch,
-        addUnifiedParTAK4=nanoAOD_addDeepInfoAK4CHS_switch.nanoAOD_addUnifiedParTAK4Tag_switch
-    )
+    # process = nanoAOD_addDeepInfoAK4CHS(process,
+    #     addDeepBTag=nanoAOD_addDeepInfoAK4CHS_switch.nanoAOD_addDeepBTag_switch,
+    #     addDeepFlavour=nanoAOD_addDeepInfoAK4CHS_switch.nanoAOD_addDeepFlavourTag_switch,
+    #     addParticleNet=nanoAOD_addDeepInfoAK4CHS_switch.nanoAOD_addParticleNet_switch,
+    #     addRobustParTAK4=nanoAOD_addDeepInfoAK4CHS_switch.nanoAOD_addRobustParTAK4Tag_switch,
+    #     addUnifiedParTAK4=nanoAOD_addDeepInfoAK4CHS_switch.nanoAOD_addUnifiedParTAK4Tag_switch
+    # )
 
     # This function is defined in jetsAK8_cff.py
     process = nanoAOD_addDeepInfoAK8(process,
@@ -271,7 +275,7 @@ def nanoAOD_customizeCommon(process):
                         addUTagInfo = nanoAOD_tau_switch.addUParTInfo.value(),
                         usePUPPIjets = True
     )
-    
+
     nanoAOD_boostedTau_switch = cms.PSet(
         idsToAdd = cms.vstring()
     )
@@ -289,6 +293,9 @@ def nanoAOD_customizeCommon(process):
     # Add lepton time-life info
     from PhysicsTools.NanoAOD.leptonTimeLifeInfo_common_cff import addTimeLifeInfoBase
     process = addTimeLifeInfoBase(process)
+
+    from PhysicsTools.NanoAOD.custom_bph_simplified_cff import nanoAOD_customize_KshortLL_LambdaLL_PhiKK
+    process = nanoAOD_customize_KshortLL_LambdaLL_PhiKK(process)
 
     return process
 

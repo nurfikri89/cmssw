@@ -15,18 +15,33 @@ jetMCTable = simplePATJetFlatTableProducer.clone(
         partonFlavour = Var("partonFlavour()", "int16", doc="flavour from parton matching"),
         hadronFlavour = Var("hadronFlavour()", "uint8", doc="flavour from hadron ghost clustering"),
         # cut should follow genJetTable.cut
-        genJetIdx = Var("?genJetFwdRef().backRef().isNonnull() && genJetFwdRef().backRef().pt() > 10.?genJetFwdRef().backRef().key():-1", "int16", doc="index of matched gen jet"),
+        genJetIdx = Var("?genJetFwdRef().backRef().isNonnull() && genJetFwdRef().backRef().pt() > 5.?genJetFwdRef().backRef().key():-1", "int16", doc="index of matched gen jet"),
     )
 )
 genJetTable = simpleGenJetFlatTableProducer.clone(
     src = cms.InputTag("slimmedGenJets"),
-    cut = cms.string("pt > 10"),
+    cut = cms.string("pt > 3"),
     name = cms.string("GenJet"),
     doc  = cms.string("slimmedGenJets, i.e. ak4 Jets made with visible genparticles"),
     variables = cms.PSet(P4Vars,
     #anything else?
+    nConstituents = Var("numberOfDaughters()","uint8",doc="Number of particles in the jet"),
+    chHEF  = Var("chargedHadronEnergy()/energy()", float, doc="charged Hadron Energy Fraction", precision=-1),
+    neHEF  = Var("neutralHadronEnergy()/energy()", float, doc="neutral Hadron Energy Fraction", precision=-1),
+    chEmEF = Var("chargedEmEnergy()/energy()", float, doc="charged EM Energy Fraction", precision=-1),
+    neEmEF = Var("neutralEmEnergy()/energy()", float, doc="neutral EM Energy Fraction", precision=-1),
+    muEF   = Var("muonEnergy()/energy()", float, doc="muon Energy", precision=-1),
+    chHadMultiplicity = Var("chargedHadronMultiplicity", "int16", doc="number of charged hadrons in the jet"),
+    neHadMultiplicity = Var("neutralHadronMultiplicity", "int16", doc="number of neutral hadrons in the jet"),
+    chEmMultiplicity  = Var("chargedEmMultiplicity", "int16", doc="number of charged EM particles in the jet"),
+    neEmMultiplicity  = Var("neutralEmMultiplicity", "int16", doc="number of neutral EM particles in the jet"),
+    muMultiplicity    = Var("muonMultiplicity", "int16", doc="number of muons in the jet"),
     )
 )
+genJetTable.variables.pt.precision=-1
+genJetTable.variables.eta.precision=-1
+genJetTable.variables.phi.precision=-1
+genJetTable.variables.mass.precision=-1
 
 patJetPartonsNano = cms.EDProducer('HadronAndPartonSelector',
     src = cms.InputTag("generator"),

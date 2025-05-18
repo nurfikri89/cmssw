@@ -38,7 +38,9 @@ public:
         pvToken_(consumes<std::vector<reco::Vertex>>(cfg.getParameter<edm::InputTag>("pvSrc"))),
         maxDzDilep_(cfg.getParameter<double>("maxDzDilep")),
         dcaSig_(cfg.getParameter<double>("dcaSig")),
-        track_selection_(cfg.getParameter<std::string>("trackSelection")) {
+        track_selection_(cfg.getParameter<std::string>("trackSelection")), 
+        doDileptonCheck_(cfg.getParameter<bool>("doDileptonCheck"))
+        {
     produces<pat::CompositeCandidateCollection>("SelectedTracks");
     produces<TransientTrackCollection>("SelectedTransientTracks");
     produces<edm::Association<pat::CompositeCandidateCollection>>("SelectedTracks");
@@ -62,6 +64,7 @@ private:
   const double maxDzDilep_;
   const double dcaSig_;
   const StringCutObjectSelector<pat::PackedCandidate> track_selection_;
+  const bool doDileptonCheck_;
 };
 
 void BPHTrackMerger::produce(edm::StreamID, edm::Event &evt, edm::EventSetup const &stp) const {
@@ -121,13 +124,19 @@ void BPHTrackMerger::produce(edm::StreamID, edm::Event &evt, edm::EventSetup con
 
     bool skipTrack = true;
     float dzTrg = 0.0;
-    for (const pat::CompositeCandidate &dilep : *dileptons) {
-      // if dz is negative it is deactivated
-      if (fabs(trk.vz() - dilep.vz()) > maxDzDilep_ && maxDzDilep_ > 0)
-        continue;
+
+    if (doDileptonCheck_){
+      for (const pat::CompositeCandidate &dilep : *dileptons) {
+        // if dz is negative it is deactivated
+        if (fabs(trk.vz() - dilep.vz()) > maxDzDilep_ && maxDzDilep_ > 0)
+          continue;
+        skipTrack = false;
+        dzTrg = trk.vz() - dilep.vz();
+        break;  // at least for one dilepton candidate to pass this cuts
+      }
+    }
+    else{
       skipTrack = false;
-      dzTrg = trk.vz() - dilep.vz();
-      break;  // at least for one dilepton candidate to pass this cuts
     }
 
     // if track is far from all dilepton candidate
