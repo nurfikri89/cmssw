@@ -15,12 +15,12 @@ jetMCTable = simplePATJetFlatTableProducer.clone(
         partonFlavour = Var("partonFlavour()", "int16", doc="flavour from parton matching"),
         hadronFlavour = Var("hadronFlavour()", "uint8", doc="flavour from hadron ghost clustering"),
         # cut should follow genJetTable.cut
-        genJetIdx = Var("?genJetFwdRef().backRef().isNonnull() && genJetFwdRef().backRef().pt() > 5.?genJetFwdRef().backRef().key():-1", "int16", doc="index of matched gen jet"),
+        genJetIdx = Var("?genJetFwdRef().backRef().isNonnull() && genJetFwdRef().backRef().pt() > 5?genJetFwdRef().backRef().key():-1", "int16", doc="index of matched gen jet"),
     )
 )
 genJetTable = simpleGenJetFlatTableProducer.clone(
     src = cms.InputTag("slimmedGenJets"),
-    cut = cms.string("pt > 3"),
+    cut = cms.string("pt > 5"),
     name = cms.string("GenJet"),
     doc  = cms.string("slimmedGenJets, i.e. ak4 Jets made with visible genparticles"),
     variables = cms.PSet(P4Vars,
