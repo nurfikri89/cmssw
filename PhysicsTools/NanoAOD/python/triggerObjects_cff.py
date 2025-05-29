@@ -109,6 +109,8 @@ triggerObjectTable = triggerObjectTableProducer.clone(
                 mksel("filter('hltEG30Iso60CaloId15b35eR9Id50b90eHE12b10eR9Id50b80eEcalIsoFilter')","hltEG30Iso60CaloId15b35eR9Id50b90eHE12b10eR9Id50b80eEcalIsoFilter"),
                 mksel("filter('hltEG18TrackIso60Iso60CaloId15b35eR9Id50b90eHE12b10eR9Id50b80eTrackIsoUnseededFilter')","hltEG18TrackIso60Iso60CaloId15b35eR9Id50b90eHE12b10eR9Id50b80eTrackIsoUnseededFilter"),
                 mksel("filter('hltEG*L1VBFLooseIsoEGHEFilter')", "hltEG*L1VBFLooseIsoEGHEFilter"),
+                mksel("filter('hltEG40EBTightIDTightIsoTrackIsoFilter')","hltEG40EBTightIDTightIsoTrackIsoFilter"),
+                mksel("filter('hltEG30EBTightIDTightIsoTrackIsoFilter')","hltEG30EBTightIDTightIsoTrackIsoFilter"),
             )
         ),
         Muon = cms.PSet(

@@ -18,7 +18,8 @@ from Configuration.Eras.Modifier_run3_RPC_cff import run3_RPC
 from Configuration.Eras.Modifier_run3_ecal_cff import run3_ecal
 from Configuration.Eras.Modifier_hcalPfCutsFromDB_cff import hcalPfCutsFromDB
 from Configuration.Eras.Modifier_run3_muon_cff import run3_muon
+from Configuration.Eras.Modifier_run3_repuppi_2022_cff import run3_repuppi_2022
 
 Run3 = cms.ModifierChain(Run2_2018.copyAndExclude([run2_GEM_2017, ctpps_2018, run2_egamma_2018, run2_HLTconditions_2018, run2_muon_2018]),
-                         run3_common, run3_egamma, run3_muon, run3_GEM, run3_HB, run3_HFSL, stage2L1Trigger_2021, ctpps_2022, dd4hep, run3_RPC, run3_ecal, hcalPfCutsFromDB)
+                         run3_common, run3_egamma, run3_muon, run3_GEM, run3_HB, run3_HFSL, stage2L1Trigger_2021, ctpps_2022, dd4hep, run3_RPC, run3_ecal, hcalPfCutsFromDB,run3_repuppi_2022)
 
