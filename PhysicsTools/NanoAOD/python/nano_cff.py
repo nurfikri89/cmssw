@@ -292,6 +292,95 @@ def nanoAOD_customizeCommon(process):
 
     return process
 
+def nanoAOD_customizeAddAK4CHS(process):
+
+    runOnMC=True
+    if hasattr(process,"NANOEDMAODoutput") or hasattr(process,"NANOAODoutput"):
+        runOnMC = False
+
+    del process.updatedJetsWithUserData.userFloats.leadTrackPt
+    del process.updatedJetsWithUserData.userFloats.leptonPtRelv0
+    del process.updatedJetsWithUserData.userFloats.leptonPtRelInvv0
+    del process.updatedJetsWithUserData.userFloats.leptonDeltaR
+    del process.updatedJetsWithUserData.userFloats.vtxPt
+    del process.updatedJetsWithUserData.userFloats.vtxMass
+    del process.updatedJetsWithUserData.userFloats.vtx3dL
+    del process.updatedJetsWithUserData.userFloats.vtx3deL
+    del process.updatedJetsWithUserData.userFloats.ptD
+    del process.updatedJetsWithUserData.userFloats.qgl
+    del process.updatedJetsWithUserData.userFloats.puIdNanoDisc
+    del process.updatedJetsWithUserData.userFloats.muonSubtrRawPt
+    del process.updatedJetsWithUserData.userFloats.muonSubtrRawEta
+    del process.updatedJetsWithUserData.userFloats.muonSubtrRawPhi
+
+    del process.updatedJetsWithUserData.userInts.vtxNtrk
+    del process.updatedJetsWithUserData.userInts.leptonPdgId
+    del process.updatedJetsWithUserData.userInts.puIdNanoId
+
+    print(process.updatedJetsWithUserData.dumpPython())
+
+    #
+    # Customize jetTable
+    #
+    process.jetTable.src = cms.InputTag("finalJets") 
+    process.jetTable.name = "JetCHS" # Change collection name from "Jet" ->" JetCHS"
+
+    #
+    # Remove these tagger branches since for CHS, we just want to store ParticleNet.
+    # Remove also branches related to object linking. It is only done for AK4 Puppi.
+    #
+    for varName in process.jetTable.variables.parameterNames_():
+        if "btagDeepFlav" in varName or "btagRobustParT" in varName or "btagUParT" in varName:
+          delattr(process.jetTable.variables, varName)
+        if "UParTAK4Reg" in varName:
+          delattr(process.jetTable.variables, varName)
+        if "svIdx" in varName or "muonIdx" in varName or "electronIdx" in varName:
+          delattr(process.jetTable.variables, varName)
+        if "nSVs" in varName or "nElectrons" in varName or "nMuons" in varName:
+          delattr(process.jetTable.variables, varName)
+
+    del process.jetTable.variables.muonSubtrFactor
+    del process.jetTable.variables.muonSubtrDeltaEta
+    del process.jetTable.variables.muonSubtrDeltaPhi
+    del process.jetTable.variables.qgl
+    del process.jetTable.variables.puIdDisc
+    del process.jetTable.variables.puId
+
+    del process.jetTable.externalVariables.bRegCorr
+    del process.jetTable.externalVariables.bRegRes
+    del process.jetTable.externalVariables.cRegCorr
+    del process.jetTable.externalVariables.cRegRes
+
+    process.jetUserDataTask = cms.Task(
+        process.jercVars,
+    )
+    process.nanoTableTaskCommon.add(process.jetUserDataTask)
+
+    process.jetTask = cms.Task(
+        process.jetCorrFactorsNano,
+        process.updatedJets,
+        # process.jetUserDataTask,
+        process.updatedJetsWithUserData,
+        process.finalJets
+    )
+    process.nanoTableTaskCommon.add(process.jetTask)
+
+    process.jetTablesTask = cms.Task(
+        process.jetTable
+    )
+    process.nanoTableTaskCommon.add(process.jetTablesTask)
+
+    #
+    # Only for MC
+    #
+    process.jetCHSMCTable = process.jetMCTable.clone(
+        src = process.jetTable.src,
+        name = process.jetTable.name
+    )
+    process.jetMCTask.add(process.jetCHSMCTable)
+
+    return process
+
 ###increasing the precision of selected GenParticles.
 def nanoWmassGenCustomize(process):
     pdgSelection="?(abs(pdgId) == 11|| abs(pdgId)==13 || abs(pdgId)==15 ||abs(pdgId)== 12 || abs(pdgId)== 14 || abs(pdgId)== 16|| abs(pdgId)== 24|| pdgId== 23)"
