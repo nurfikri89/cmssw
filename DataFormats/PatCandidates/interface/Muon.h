@@ -47,6 +47,7 @@ namespace reco {
 namespace pat {
 
   class PATMuonSlimmer;
+  class PATMuonCandidatesRekeyer;
 
   class Muon : public Lepton<reco::Muon> {
   public:
@@ -100,7 +101,7 @@ namespace pat {
     // rekey TrackExtra references of embedded tracks
     void rekeyEmbeddedTracks(std::vector<edm::Handle<edm::Association<reco::TrackExtraCollection>>> const& assocs);
 
-    // ---- methods for MuonMETCorrectionData ----
+    // ---- methods Pfor MuonMETCorrectionData ----
     /// muon MET corrections for caloMET; returns the muon correction struct if embedded during pat tuple production or an empty element
     reco::MuonMETCorrectionData caloMETMuonCorrs() const {
       return (embeddedCaloMETMuonCorrs_ ? caloMETMuonCorrs_.front() : reco::MuonMETCorrectionData());
@@ -272,6 +273,7 @@ namespace pat {
     friend std::ostream& reco::operator<<(std::ostream& out, const pat::Muon& obj);
 
     friend class PATMuonSlimmer;
+    friend class PATMuonCandidatesRekeyer;
 
     float pfEcalEnergy() const { return pfEcalEnergy_; }
     void setPfEcalEnergy(float pfEcalEnergy) { pfEcalEnergy_ = pfEcalEnergy; }
