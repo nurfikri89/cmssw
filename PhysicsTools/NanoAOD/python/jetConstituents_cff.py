@@ -4,6 +4,7 @@ from PhysicsTools.NanoAOD.common_cff import Var, CandVars
 from PhysicsTools.NanoAOD.common_cff import *
 from PhysicsTools.NanoAOD.jetsAK8_cff import fatJetTable as _fatJetTable
 from PhysicsTools.NanoAOD.jetsAK4_Puppi_cff import jetPuppiTable as _jetPuppiTable
+from PhysicsTools.NanoAOD.muons_cff import muonTable as _muonTable
 
 ##############################################################
 # Take AK8 jets and collect their PF constituents
@@ -80,6 +81,8 @@ pfCandidatesTable.variables.mass.precision = -1
 #
 pfCandidatesExtTable = cms.EDProducer("PackedCandidateExtTableProducer",
     srcPFCandidates = pfCandidatesTable.src,
+    srcJets = _jetPuppiTable.src,
+    srcMuons = _muonTable.src,
     packedPFCandidates = cms.InputTag("packedPFCandidates"),
     PFClustersHCAL = cms.InputTag("particleFlowClusterHCAL"),
     PFRecHitsHBHE = cms.InputTag("particleFlowRecHitHBHE"),
@@ -89,6 +92,7 @@ pfCandidatesExtTable = cms.EDProducer("PackedCandidateExtTableProducer",
     savePFRecHitsHBHE = cms.bool(True),
     savePFClustersECAL = cms.bool(True),
     savePFClustersPS = cms.bool(True),
+    matchMuonsWithPFRecHitsHBHE = cms.bool(False),
     name = pfCandidatesTable.name,
     srcWeightsV = cms.VInputTag(),
     weightNamesV = cms.vstring(),

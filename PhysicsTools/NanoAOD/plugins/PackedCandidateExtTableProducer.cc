@@ -29,6 +29,22 @@
 #include "DataFormats/Candidate/interface/CandidateFwd.h"
 #include "DataFormats/NanoAOD/interface/FlatTable.h"
 
+#include "DataFormats/TrackReco/interface/Track.h"
+
+#include "DataFormats/PatCandidates/interface/Muon.h"
+#include "DataFormats/PatCandidates/interface/Jet.h"
+
+#include "Calibration/IsolatedParticles/interface/MatrixHCALDetIds.h"
+#include "Calibration/IsolatedParticles/interface/CaloPropagateTrack.h"
+
+#include "Geometry/Records/interface/CaloGeometryRecord.h"
+#include "Geometry/Records/interface/HcalRecNumberingRecord.h"
+#include "Geometry/CaloGeometry/interface/CaloGeometry.h"
+#include "MagneticField/Engine/interface/MagneticField.h"
+#include "MagneticField/Records/interface/IdealMagneticFieldRecord.h"
+#include "Geometry/CaloTopology/interface/HcalTopology.h"
+
+
 class PackedCandidateExtTableProducer : public edm::stream::EDProducer<> {
 public:
   explicit PackedCandidateExtTableProducer(const edm::ParameterSet &);
@@ -40,6 +56,10 @@ private:
   void produce(edm::Event &, const edm::EventSetup &) override;
 
   edm::EDGetTokenT<reco::CandidateView>  pfcands_token_;
+
+  const edm::EDGetTokenT<pat::JetCollection>  jetsToken_;
+  const edm::EDGetTokenT<pat::MuonCollection> muonsToken_;
+
   const edm::EDGetTokenT<pat::PackedCandidateCollection> pc_;
   const edm::EDGetTokenT<edm::Association<reco::PFCandidateCollection>> pc2pf_;
   const edm::EDGetTokenT<reco::PFClusterCollection> pfClustersHCALToken_;
@@ -52,6 +72,8 @@ private:
   const bool savePFClustersECAL_;
   const bool savePFClustersPS_;
 
+  const bool matchMuonsWithPFRecHitsHBHE_;
+
   const std::string name_;
   const bool saveFromPVvertexRef_;
   const int weightPrecision_;
@@ -60,6 +82,7 @@ private:
   std::string name_PFRecHitHBHE_;
   std::string name_PFCandToPFClusterHCAL_;
   std::string name_PFClusterHCALToPFRecHitHBHE_;
+  std::string name_MuonToPFRecHitHBHE_;
 
   std::string name_PFClusterECAL_;
   std::string name_PFRecHitEB_;
@@ -71,6 +94,10 @@ private:
   std::vector<edm::EDGetTokenT<edm::ValueMap<float>>> v_pfcands_weights_tokens_;
   std::vector<std::string> v_weightNames_;
   std::vector<std::string> v_weightDocs_;
+
+  edm::ESGetToken<MagneticField, IdealMagneticFieldRecord> magneticFieldToken_;
+  edm::ESGetToken<CaloGeometry, CaloGeometryRecord> geometryToken_;
+  edm::ESGetToken<HcalTopology, HcalRecNumberingRecord> hcalTopologyToken_;
 };
 
 //
@@ -78,6 +105,8 @@ private:
 //
 PackedCandidateExtTableProducer::PackedCandidateExtTableProducer(const edm::ParameterSet &iConfig):
   pfcands_token_(consumes<reco::CandidateView>(iConfig.getParameter<edm::InputTag>("srcPFCandidates"))),
+  jetsToken_(consumes<pat::JetCollection>(iConfig.getParameter<edm::InputTag>("srcJets"))),
+  muonsToken_(consumes<pat::MuonCollection>(iConfig.getParameter<edm::InputTag>("srcMuons"))),
   pc_(consumes<pat::PackedCandidateCollection>(iConfig.getParameter<edm::InputTag>("packedPFCandidates"))),
   pc2pf_(consumes<edm::Association<reco::PFCandidateCollection>>(iConfig.getParameter<edm::InputTag>("packedPFCandidates"))),
   pfClustersHCALToken_(consumes<reco::PFClusterCollection>(iConfig.getParameter<edm::InputTag>("PFClustersHCAL"))),
@@ -88,6 +117,7 @@ PackedCandidateExtTableProducer::PackedCandidateExtTableProducer(const edm::Para
   savePFRecHitsHBHE_(iConfig.getParameter<bool>("savePFRecHitsHBHE")),
   savePFClustersECAL_(iConfig.getParameter<bool>("savePFClustersECAL")),
   savePFClustersPS_(iConfig.getParameter<bool>("savePFClustersPS")),
+  matchMuonsWithPFRecHitsHBHE_(iConfig.getParameter<bool>("matchMuonsWithPFRecHitsHBHE")),
   name_(iConfig.getParameter<std::string>("name")),
   saveFromPVvertexRef_(iConfig.getParameter<bool>("saveFromPVvertexRef")),
   weightPrecision_(iConfig.getParameter<int>("weightPrecision"))
@@ -105,6 +135,7 @@ PackedCandidateExtTableProducer::PackedCandidateExtTableProducer(const edm::Para
   name_PFRecHitHBHE_ = "PFRecHitHBHE";
   name_PFCandToPFClusterHCAL_ = "PFCandToPFClusterHCAL";
   name_PFClusterHCALToPFRecHitHBHE_ = "PFClusterHCALToPFRecHitHBHE";
+  name_MuonToPFRecHitHBHE_ = "MuonToPFRecHitHBHBE";
 
   name_PFClusterECAL_ = "PFClusterECAL";
   name_PFRecHitEB_ = "PFRecHitEB";
@@ -121,6 +152,10 @@ PackedCandidateExtTableProducer::PackedCandidateExtTableProducer(const edm::Para
     produces<nanoaod::FlatTable>(name_PFCandToPFClusterHCAL_);
   if (savePFRecHitsHBHE_ && savePFClustersHCAL_)
     produces<nanoaod::FlatTable>(name_PFClusterHCALToPFRecHitHBHE_);
+  if (savePFRecHitsHBHE_ && matchMuonsWithPFRecHitsHBHE_){
+    produces<nanoaod::FlatTable>(name_MuonToPFRecHitHBHE_);
+    produces<nanoaod::FlatTable>("Muon");
+  }
   if(savePFClustersECAL_)
     produces<nanoaod::FlatTable>(name_PFClusterECAL_);
   if (savePFClustersPS_)
@@ -131,6 +166,10 @@ PackedCandidateExtTableProducer::PackedCandidateExtTableProducer(const edm::Para
 
   // produces<nanoaod::FlatTable>(name_PFClusterPS_);
   // produces<nanoaod::FlatTable>(name_PFRecHitPS_);
+
+  magneticFieldToken_ = esConsumes<MagneticField, IdealMagneticFieldRecord>();
+  geometryToken_      = esConsumes<CaloGeometry, CaloGeometryRecord>();
+  hcalTopologyToken_  = esConsumes<HcalTopology, HcalRecNumberingRecord>();
 }
 
 PackedCandidateExtTableProducer::~PackedCandidateExtTableProducer() {}
@@ -448,6 +487,68 @@ void PackedCandidateExtTableProducer::produce(edm::Event &iEvent, const edm::Eve
 
   //==========================================
   //
+  // HCAL Rechits in jet cone
+  //
+  //==========================================
+  // edm::Handle<reco::CandidateView> jets;
+  // iEvent.getByToken(jetsToken_, jets);
+  // unsigned int nJet = jets->size();
+  // for (unsigned int ijet = 0; ijet < nJet; ijet++) {
+  //   const pat::Jet &itJet = (*jets)[ijet];
+  //   std::vector<DetId> matrixHCALIds(const DetId& det,
+  //                                   const CaloGeometry* geo,
+  //                                   const HcalTopology* topology,
+  //                                   double dR,
+  //                                   const GlobalVector& trackMom,
+  //                                   bool includeHO,
+  //                                   bool debug)
+  // }
+
+  //==========================================
+  //
+  // HCAL Rechits associated to muons
+  //
+  //==========================================
+  //first: Muon index
+  //second.first:  DetId of associated rechits
+  //second.second: is closest rechit
+  std::vector<std::pair<int,std::pair<DetId,bool>>> MappingInfo_Muon_To_PFRecHit;
+
+  unsigned int nMuons = 0;
+
+  if (savePFRecHitsHBHE_ && matchMuonsWithPFRecHitsHBHE_){
+    const CaloGeometry* geometry = &iSetup.getData(geometryToken_);
+    const MagneticField* bField = &iSetup.getData(magneticFieldToken_);
+    const HcalTopology* theHBHETopology = &iSetup.getData(hcalTopologyToken_);
+
+    edm::Handle<pat::MuonCollection> muons;
+    iEvent.getByToken(muonsToken_, muons);
+    nMuons = muons->size();
+    for (unsigned int imuon = 0; imuon < nMuons; imuon++) {
+      const pat::Muon& itMuon = (*muons)[imuon];
+
+      reco::TrackRef muonTrack = itMuon.innerTrack();
+      const reco::Track* pTrack = muonTrack.get();
+      if (pTrack){
+        spr::propagatedTrackID trackID = spr::propagateCALO(pTrack, geometry, bField, /*debug=*/ false );
+        if (trackID.okHCAL) {
+          const DetId closestCell(trackID.detIdHCAL);
+          std::vector<DetId> dets(1, closestCell);
+          std::vector<DetId> vdets = spr::matrixHCALIds(dets, theHBHETopology, /*ieta=*/ 1,  /*iphi=*/ 1, false, /*debug=*/ false);
+          for (unsigned int detsIdx = 0; detsIdx < vdets.size(); detsIdx++) {
+            bool isClosest = vdets[detsIdx] == closestCell;
+            MappingInfo_Muon_To_PFRecHit.push_back(
+              std::make_pair(imuon,std::make_pair(vdets[detsIdx],isClosest))
+            );
+            SelectedPFRecHitHBHE_rawDetId.insert(vdets[detsIdx]);
+          }
+        }
+      }
+    }
+  }
+
+  //==========================================
+  //
   // PFRecHits HCAL: HBHE
   //
   //==========================================
@@ -463,11 +564,19 @@ void PackedCandidateExtTableProducer::produce(edm::Event &iEvent, const edm::Eve
   std::vector<int>   PFClusterHCALToPFRecHitHBHBE_PFRecHitHBHEIdx;
   std::vector<float> PFClusterHCALToPFRecHitHBHBE_fraction;
 
+  unsigned int nMuonToPFRecHitHBHBE=0;
+  std::vector<int>   MuonToPFRecHitHBHBE_MuonIdx;
+  std::vector<int>   MuonToPFRecHitHBHBE_PFRecHitHBHEIdx;
+
+  std::vector<int>   Muon_ClosestPFRecHitHBHEIdx;
+  std::vector<unsigned int>   Muon_ClosestPFRecHitHBHEDetId;
+
   if (savePFRecHitsHBHE_){
     edm::Handle<std::vector<reco::PFRecHit>> pfRecHitsHBHEHandle;
     iEvent.getByToken(pfRecHitsHBHEToken_, pfRecHitsHBHEHandle);
     auto pfRecHitsHBHE = pfRecHitsHBHEHandle.product();
 
+    // std::cout << " pfRecHitsHBHE->size() = " << pfRecHitsHBHE->size() << std::endl;
     for (size_t idx = 0; idx < pfRecHitsHBHE->size(); idx++){
       reco::PFRecHitRef pfrechitRef( pfRecHitsHBHEHandle, idx);
       if (SelectedPFRecHitHBHE_rawDetId.find(pfrechitRef.get()->detId()) == SelectedPFRecHitHBHE_rawDetId.end())
@@ -497,6 +606,32 @@ void PackedCandidateExtTableProducer::produce(edm::Event &iEvent, const edm::Eve
       PFClusterHCALToPFRecHitHBHBE_PFRecHitHBHEIdx.push_back(PFRecHitIdx);
       PFClusterHCALToPFRecHitHBHBE_fraction.push_back(fraction);
       nPFClusterHCALToPFRecHitHBHBE++;
+    }
+
+    //==================================================
+    // Make branches for PFRecHit <-> Muon mapping
+    //==================================================
+    if(matchMuonsWithPFRecHitsHBHE_){
+      Muon_ClosestPFRecHitHBHEIdx.assign(nMuons,-1);
+      Muon_ClosestPFRecHitHBHEDetId.assign(nMuons,0);
+      for (size_t i = 0; i < MappingInfo_Muon_To_PFRecHit.size(); ++i) {
+        int MuonIdx = MappingInfo_Muon_To_PFRecHit[i].first;
+        int PFRecHitDetId = MappingInfo_Muon_To_PFRecHit[i].second.first;
+        int isClosest = MappingInfo_Muon_To_PFRecHit[i].second.second;
+        //
+        int PFRecHitIdx = -1;
+        auto it = std::find(PFRecHitHBHE_detId.begin(), PFRecHitHBHE_detId.end(), PFRecHitDetId);
+        if (it != PFRecHitHBHE_detId.end()) {
+          PFRecHitIdx = std::distance(PFRecHitHBHE_detId.begin(), it);
+        }
+        MuonToPFRecHitHBHBE_MuonIdx.push_back(MuonIdx);
+        MuonToPFRecHitHBHBE_PFRecHitHBHEIdx.push_back(PFRecHitIdx);
+        nMuonToPFRecHitHBHBE++;
+        if (isClosest){
+          Muon_ClosestPFRecHitHBHEIdx[MuonIdx] = PFRecHitIdx;
+          Muon_ClosestPFRecHitHBHEDetId[MuonIdx] = PFRecHitDetId;
+        }
+      }
     }
   }
 
@@ -668,6 +803,24 @@ void PackedCandidateExtTableProducer::produce(edm::Event &iEvent, const edm::Eve
     iEvent.put(std::move(pfClusterHCALToRecHitHBHETable),  name_PFClusterHCALToPFRecHitHBHE_);
   }
 
+  //========================================================
+  //
+  // Make Muon <-> PFRecHitHBHE mapping table
+  //
+  //========================================================
+  if (matchMuonsWithPFRecHitsHBHE_ && savePFRecHitsHBHE_){
+    auto muonToRecHitHBHETable = std::make_unique<nanoaod::FlatTable>(nMuonToPFRecHitHBHBE, name_MuonToPFRecHitHBHE_,  false, false);
+    muonToRecHitHBHETable->addColumn<int>("MuonIdx", MuonToPFRecHitHBHBE_MuonIdx,"MuonIdx");
+    muonToRecHitHBHETable->addColumn<int>("PFRecHitHBHEIdx",  MuonToPFRecHitHBHBE_PFRecHitHBHEIdx,"PFRecHitHBHEIdx");
+    iEvent.put(std::move(muonToRecHitHBHETable),  name_MuonToPFRecHitHBHE_);
+
+    auto muonTable = std::make_unique<nanoaod::FlatTable>(nMuons, "Muon", false, true);
+    muonTable->addColumn<int>("ClosestPFRecHitHBHEIdx", Muon_ClosestPFRecHitHBHEIdx,"Index of closest PFRecHitHBHE");
+    muonTable->addColumn<int>("ClosestPFRecHitHBHEDetId", Muon_ClosestPFRecHitHBHEDetId,"DetId of closest PFRecHitHBHE");
+
+    iEvent.put(std::move(muonTable),  "Muon");
+  }
+
   //==========================================
   //
   // Make PFCluster ECAL table
@@ -715,6 +868,8 @@ void PackedCandidateExtTableProducer::produce(edm::Event &iEvent, const edm::Eve
 void PackedCandidateExtTableProducer::fillDescriptions(edm::ConfigurationDescriptions &descriptions) {
   edm::ParameterSetDescription desc;
   desc.add<edm::InputTag>("srcPFCandidates", edm::InputTag("finalJetsConstituents"));
+  desc.add<edm::InputTag>("srcJets", edm::InputTag("finalJetsPuppi"));
+  desc.add<edm::InputTag>("srcMuons", edm::InputTag("finalMuons"));
   desc.add<edm::InputTag>("packedPFCandidates", edm::InputTag("packedPFCandidates"));
   desc.add<edm::InputTag>("PFClustersHCAL", edm::InputTag("particleFlowClusterHCAL"));
   desc.add<edm::InputTag>("PFRecHitsHBHE", edm::InputTag("particleFlowRecHitHBHE"));
@@ -724,6 +879,7 @@ void PackedCandidateExtTableProducer::fillDescriptions(edm::ConfigurationDescrip
   desc.add<bool>("savePFRecHitsHBHE", true);
   desc.add<bool>("savePFClustersECAL", true);
   desc.add<bool>("savePFClustersPS", true);
+  desc.add<bool>("matchMuonsWithPFRecHitsHBHE", false);
   desc.add<std::string>("name", "PFCand");
   desc.add<bool>("saveFromPVvertexRef", false);
   desc.add<int>("weightPrecision", -1);

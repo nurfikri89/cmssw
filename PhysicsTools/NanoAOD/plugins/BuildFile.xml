@@ -22,6 +22,7 @@
 <use name="DataFormats/ParticleFlowCandidate"/>
 <use name="DataFormats/ParticleFlowReco"/>
 <use name="DataFormats/ProtonReco"/>
+<use name="DataFormats/TrackReco"/>
 <use name="FWCore/Framework"/>
 <use name="FWCore/ParameterSet"/>
 <use name="FWCore/ServiceRegistry"/>
@@ -30,6 +31,13 @@
 <use name="PhysicsTools/PatAlgos"/>
 <use name="RecoVertex/VertexPrimitives"/>
 <use name="RecoVertex/VertexTools"/>
+<use name="Calibration/IsolatedParticles"/>
+<use name="Geometry/CaloGeometry"/>
+<use name="Geometry/CaloTopology"/>
+<use name="MagneticField/Engine"/>
+<use name="MagneticField/Records"/>
+<use name="Geometry/Records"/>
+
 <library file="*.cc" name="PhysicsToolsNanoAODPlugins">
   <use name="DataFormats/VertexReco"/>
   <use name="CommonTools/Utils"/>
