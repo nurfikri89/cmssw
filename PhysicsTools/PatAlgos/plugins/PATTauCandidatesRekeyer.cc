@@ -58,38 +58,38 @@ void PATTauCandidatesRekeyer::produce(edm::Event &iEvent, edm::EventSetup const 
     outPtrP->emplace_back((*src)[i]);
 
     reco::CandidatePtrVector signalChHPtrs;
-    for (const reco::PFCandidatePtr &p : outPtrP->back().signalPFChargedHadrCands()) {
+    for (const reco::CandidatePtr &p : outPtrP->back().signalChargedHadrCands()) {
       signalChHPtrs.push_back(edm::Ptr<reco::Candidate>(pcNewHandle,p.key()));
     }
     outPtrP->back().setSignalChargedHadrCands(signalChHPtrs);
 
     reco::CandidatePtrVector signalNHPtrs;
-    for (const reco::PFCandidatePtr &p : outPtrP->back().signalPFNeutrHadrCands()) {
+    for (const reco::CandidatePtr &p : outPtrP->back().signalNeutrHadrCands()) {
       signalNHPtrs.push_back(edm::Ptr<reco::Candidate>(pcNewHandle,p.key()));
     }
     outPtrP->back().setSignalNeutralHadrCands(signalNHPtrs);
 
     reco::CandidatePtrVector signalGammaPtrs;
-    for (const reco::PFCandidatePtr &p : outPtrP->back().signalPFGammaCands()) {
+    for (const reco::CandidatePtr &p : outPtrP->back().signalGammaCands()) {
       signalGammaPtrs.push_back(edm::Ptr<reco::Candidate>(pcNewHandle,p.key()));
     }
     outPtrP->back().setSignalGammaCands(signalGammaPtrs);
 
     reco::CandidatePtrVector isolationChHPtrs;
-    for (const reco::PFCandidatePtr &p : outPtrP->back().isolationPFChargedHadrCands()) {
+    for (const reco::CandidatePtr &p : outPtrP->back().isolationChargedHadrCands()) {
       isolationChHPtrs.push_back(edm::Ptr<reco::Candidate>(pcNewHandle,p.key()));
     }
     outPtrP->back().setIsolationChargedHadrCands(isolationChHPtrs);
 
     reco::CandidatePtrVector isolationNHPtrs;
 
-    for (const reco::PFCandidatePtr &p : outPtrP->back().isolationPFNeutrHadrCands()) {
+    for (const reco::CandidatePtr &p : outPtrP->back().isolationNeutrHadrCands()) {
       isolationNHPtrs.push_back(edm::Ptr<reco::Candidate>(pcNewHandle,p.key()));
     }
     outPtrP->back().setIsolationNeutralHadrCands(isolationNHPtrs);
 
     reco::CandidatePtrVector isolationGammaPtrs;
-    for (const reco::PFCandidatePtr &p : outPtrP->back().isolationPFGammaCands()) {
+    for (const reco::CandidatePtr &p : outPtrP->back().isolationGammaCands()) {
       isolationGammaPtrs.push_back(edm::Ptr<reco::Candidate>(pcNewHandle,p.key()));
     }
     outPtrP->back().setIsolationGammaCands(isolationGammaPtrs);
