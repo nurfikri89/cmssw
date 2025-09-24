@@ -33,9 +33,7 @@ using namespace pat;
 PATJetCandidatesRekeyer::PATJetCandidatesRekeyer(const edm::ParameterSet &iConfig):
   src_(consumes<std::vector<pat::Jet>>(iConfig.getParameter<edm::InputTag>("src"))),
   pcNewCandViewToken_(consumes<reco::CandidateView>(iConfig.getParameter<edm::InputTag>("packedPFCandidatesNew"))),
-  pcNewToken_(consumes<pat::PackedCandidateCollection>(iConfig.getParameter<edm::InputTag>("packedPFCandidatesNew")))
-  // ,subjetLabel_(iConfig.getParameter<std::string>("SubJetLabel"))
-{
+  pcNewToken_(consumes<pat::PackedCandidateCollection>(iConfig.getParameter<edm::InputTag>("packedPFCandidatesNew"))){
   produces<std::vector<pat::Jet>>();
   produces<edm::OwnVector<reco::BaseTagInfo>>("tagInfos");
 }
