@@ -2,6 +2,8 @@
 #include "CommonTools/UtilAlgos/interface/SingleElementCollectionSelector.h"
 #include "CommonTools/UtilAlgos/interface/SingleObjectSelector.h"
 #include "CommonTools/UtilAlgos/interface/StringCutObjectSelector.h"
+#include "CommonTools/UtilAlgos/interface/MatchByDR.h"
+#include "CommonTools/UtilAlgos/interface/OverlapExclusionSelector.h"
 #include "DataFormats/Common/interface/RefVector.h"
 #include "DataFormats/PatCandidates/interface/PackedCandidate.h"
 #include "DataFormats/PatCandidates/interface/PackedGenParticle.h"
@@ -294,6 +296,11 @@ namespace pat {
       edm::RefVector<std::vector<CompositeCandidate>>>
       PATCompositeCandidateRefSelector;
 
+  typedef SingleObjectSelector<std::vector<Jet>,
+    OverlapExclusionSelector<edm::View<reco::Candidate>, Jet,
+    reco::MatchByDR<reco::Candidate, reco::Candidate>>>
+    PATJetDeltaROverlapExclusionSelector;
+
   typedef SingleObjectSelector<pat::IsolatedTrackCollection, StringCutObjectSelector<pat::IsolatedTrack>>
       IsoTrackSelector;
 
@@ -327,6 +334,8 @@ DEFINE_FWK_MODULE(PATMETRefSelector);
 DEFINE_FWK_MODULE(PATPFParticleRefSelector);
 DEFINE_FWK_MODULE(PATGenericParticleRefSelector);
 DEFINE_FWK_MODULE(PATCompositeCandidateRefSelector);
+
+DEFINE_FWK_MODULE(PATJetDeltaROverlapExclusionSelector);
 
 DEFINE_FWK_MODULE(IsoTrackSelector);
 DEFINE_FWK_MODULE(MuonRefPatCount);
