@@ -40,11 +40,13 @@ private:
   void analyzeTagInfoUnifiedParticleTransformerAK4(const reco::UnifiedParticleTransformerAK4TagInfo*);
 
   const edm::EDGetTokenT<edm::View<reco::Jet>> jetToken_;
+
   const std::vector<std::string> jetTagInfos_;
   const double ptMin_;
   const double absEtaMin_;
   const double absEtaMax_;
   const int jetPartonFlavour_;
+  const std::string jetCutStr_;
   std::vector<edm::InputTag> tagInfoTags_;
   std::vector<edm::EDGetTokenT<edm::View<reco::BaseTagInfo>>> tagInfoTokens_;
 
@@ -55,6 +57,7 @@ private:
 
   std::string partonFlavourLabel_;
 
+  std::unordered_map<std::string, MonitorElement*> map_ME_jet_;
   std::unordered_map<std::string, MonitorElement*> map_ME_DeepJet_;
   std::unordered_map<std::string, MonitorElement*> map_ME_ParticleNet_;
   std::unordered_map<std::string, MonitorElement*> map_ME_UParT_;
@@ -66,7 +69,8 @@ MiniAODTagInfoAnalyzer::MiniAODTagInfoAnalyzer(const edm::ParameterSet& pSet)
       ptMin_(pSet.getParameter<double>("ptMin")),
       absEtaMin_(pSet.getParameter<double>("absEtaMin")),
       absEtaMax_(pSet.getParameter<double>("absEtaMax")),
-      jetPartonFlavour_(pSet.getParameter<int>("jetPartonFlavour")) {
+      jetPartonFlavour_(pSet.getParameter<int>("jetPartonFlavour")),
+      jetCutStr_(pSet.getParameter<std::string>("jetCutStr")) {
   tagInfoTokens_ = edm::vector_transform(jetTagInfos_, [this](std::string const& jetTagInfoStr) {
     return mayConsume<edm::View<reco::BaseTagInfo>>(edm::InputTag(jetTagInfoStr));
   });
@@ -97,8 +101,18 @@ MiniAODTagInfoAnalyzer::MiniAODTagInfoAnalyzer(const edm::ParameterSet& pSet)
 }
 
 void MiniAODTagInfoAnalyzer::bookHistograms(DQMStore::IBooker& ibook, edm::Run const& run, edm::EventSetup const& es) {
+
+  std::string jetInfoStr = "";
+  if (jetCutStr_ != "") jetInfoStr += "_"+jetCutStr_;
+  jetInfoStr += "_"+partonFlavourLabel_;
+
+  ibook.setCurrentFolder("Btag/TagInfo" + jetInfoStr);
+  map_ME_jet_["jet_pt"]     = ibook.book1D("jet_pt",  "",  50, 0., 500.);
+  map_ME_jet_["jet_eta"]    = ibook.book1D("jet_eta", "",  60, -3.0, 3.0);
+  map_ME_jet_["jet_abseta"] = ibook.book1D("jet_abseta", "",  30, 0.0, 3.0);
+
   if (doDeepJet_) {
-    ibook.setCurrentFolder("Btag/TagInfo_pfDeepFlavour_" + partonFlavourLabel_);
+    ibook.setCurrentFolder("Btag/TagInfo_pfDeepFlavour" + jetInfoStr);
     map_ME_DeepJet_["c_pf_btagPf_trackEtaRel"] = ibook.book1D("c_pf_btagPf_trackEtaRel", "", 50, 0., 10.);
     map_ME_DeepJet_["c_pf_btagPf_trackPtRel"] = ibook.book1D("c_pf_btagPf_trackPtRel", "", 100, 0., 5.);
     map_ME_DeepJet_["c_pf_btagPf_trackPPar"] = ibook.book1D("c_pf_btagPf_trackPPar", "", 100, 0., 500.);
@@ -140,9 +154,9 @@ void MiniAODTagInfoAnalyzer::bookHistograms(DQMStore::IBooker& ibook, edm::Run c
   }
   if (doParticleNetCentral_ || doParticleNetForward_) {
     if (doParticleNetCentral_) {
-      ibook.setCurrentFolder("Btag/TagInfo_pfParticleNetFromMiniAODAK4PuppiCentral_" + partonFlavourLabel_);
+      ibook.setCurrentFolder("Btag/TagInfo_pfParticleNetFromMiniAODAK4PuppiCentral" + jetInfoStr);
     } else if (doParticleNetForward_) {
-      ibook.setCurrentFolder("Btag/TagInfo_pfParticleNetFromMiniAODAK4PuppiForward_" + partonFlavourLabel_);
+      ibook.setCurrentFolder("Btag/TagInfo_pfParticleNetFromMiniAODAK4PuppiForward" + jetInfoStr);
     }
     map_ME_ParticleNet_["pfcand_pt_log"] = ibook.book1D("pfcand_pt_log", "", 120, -0.5, 5.5);
     map_ME_ParticleNet_["pfcand_energy_log"] = ibook.book1D("pfcand_energy_log", "", 120, -0.5, 5.5);
@@ -228,7 +242,7 @@ void MiniAODTagInfoAnalyzer::bookHistograms(DQMStore::IBooker& ibook, edm::Run c
     map_ME_ParticleNet_["lt_n"] = ibook.book1D("lt_n", "", 11, -0.5, 10.5);
   }
   if (doUnifiedParticleTransformerAK4_) {
-    ibook.setCurrentFolder("Btag/TagInfo_pfUnifiedParticleTransformerAK4_" + partonFlavourLabel_);
+    ibook.setCurrentFolder("Btag/TagInfo_pfUnifiedParticleTransformerAK4" + jetInfoStr);
     map_ME_UParT_["c_pf_btagPf_trackEtaRel"] = ibook.book1D("c_pf_btagPf_trackEtaRel", "", 50, 0., 10.);
     map_ME_UParT_["c_pf_btagPf_trackPtRel"] = ibook.book1D("c_pf_btagPf_trackPtRel", "", 100, 0., 5.);
     map_ME_UParT_["c_pf_btagPf_trackPPar"] = ibook.book1D("c_pf_btagPf_trackPPar", "", 100, 0., 500.);
@@ -326,6 +340,7 @@ void MiniAODTagInfoAnalyzer::analyze(const edm::Event& iEvent, const edm::EventS
       continue;
 
     edm::RefToBase<reco::Jet> jetRef = jetCollection->refAt(idx);
+    edm::RefToBase<pat::Jet>  patjetRef(jetRef.castTo<pat::JetRef>());
 
     const pat::Jet* patjet = nullptr;
     patjet = dynamic_cast<const pat::Jet*>(&(*jet));
@@ -345,6 +360,10 @@ void MiniAODTagInfoAnalyzer::analyze(const edm::Event& iEvent, const edm::EventS
       }
     }
 
+    map_ME_jet_["jet_pt"]->Fill(jet->pt());
+    map_ME_jet_["jet_eta"]->Fill(jet->eta());
+    map_ME_jet_["jet_abseta"]->Fill(std::abs(jet->eta()));
+
     //
     // Loop over tag infos
     //
@@ -352,21 +371,15 @@ void MiniAODTagInfoAnalyzer::analyze(const edm::Event& iEvent, const edm::EventS
       const edm::View<reco::BaseTagInfo>& taginfos = *jetTagInfos[k];
 
       //
-      // Same procedure in PATJetProducer
-      //
       // This is not associative, so we have to search the jet
       edm::Ptr<reco::BaseTagInfo> match;
-      // Try first by 'same index'
-      if ((idx < taginfos.size()) && (taginfos[idx].jet() == jetRef)) {
-        match = taginfos.ptrAt(idx);
-      } else {
-        // otherwise fail back to a simple search
-        for (edm::View<reco::BaseTagInfo>::const_iterator itTI = taginfos.begin(), edTI = taginfos.end(); itTI != edTI;
-             ++itTI) {
-          if (itTI->jet() == jetRef) {
-            match = taginfos.ptrAt(itTI - taginfos.begin());
-            break;
-          }
+
+      for (edm::View<reco::BaseTagInfo>::const_iterator itTI = taginfos.begin(), edTI = taginfos.end(); itTI != edTI;++itTI) {
+        edm::RefToBase<pat::Jet> tagInfoPatjetRef(itTI->jet().castTo<pat::JetRef>());
+        if ((tagInfoPatjetRef->originalObjectRef().id() == patjetRef->originalObjectRef().id()) &&
+          tagInfoPatjetRef->originalObjectRef().key() == patjetRef->originalObjectRef().key()) {
+          match = taginfos.ptrAt(itTI - taginfos.begin());
+          break;
         }
       }
       //
