@@ -23,6 +23,7 @@ public:
 
   static void fillPSetDescription(edm::ParameterSetDescription& desc) {
     desc.add<edm::InputTag>("overlap", edm::InputTag(""));
+    desc.addOptional<double>("maxDeltaR", 0.4);
   }
 
 private:
