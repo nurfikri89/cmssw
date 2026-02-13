@@ -225,9 +225,10 @@ private:
   edm::EDGetTokenT<edm::View<reco::Jet>> subjetsToken_;               // Input subjet collection
   const edm::EDGetTokenT<reco::GenParticleRefVector> bHadronsToken_;  // Input b hadron collection
   const edm::EDGetTokenT<reco::GenParticleRefVector> cHadronsToken_;  // Input c hadron collection
-  const edm::EDGetTokenT<reco::GenParticleRefVector> partonsToken_;   // Input parton collection
-  edm::EDGetTokenT<edm::ValueMap<float>> weightsToken_;               // Input weights collection
-  edm::EDGetTokenT<reco::GenParticleRefVector> leptonsToken_;         // Input lepton collection
+  const edm::EDGetTokenT<reco::GenParticleRefVector> partonsToken_;       // Input parton collection
+  const edm::EDGetTokenT<reco::GenParticleRefVector> finalPartonsToken_;  // Input final parton collection
+  edm::EDGetTokenT<edm::ValueMap<float>> weightsToken_;                   // Input weights collection
+  edm::EDGetTokenT<reco::GenParticleRefVector> leptonsToken_;             // Input lepton collection
 
   const std::string jetAlgorithm_;
   const double rParam_;
@@ -271,6 +272,7 @@ JetFlavourClustering::JetFlavourClustering(const edm::ParameterSet& iConfig)
       bHadronsToken_(consumes<reco::GenParticleRefVector>(iConfig.getParameter<edm::InputTag>("bHadrons"))),
       cHadronsToken_(consumes<reco::GenParticleRefVector>(iConfig.getParameter<edm::InputTag>("cHadrons"))),
       partonsToken_(consumes<reco::GenParticleRefVector>(iConfig.getParameter<edm::InputTag>("partons"))),
+      finalPartonsToken_(consumes<reco::GenParticleRefVector>(iConfig.getParameter<edm::InputTag>("finalPartons"))),
       /// Input gen particles collection, only needed when some new jet flavour definition is used.
       jetAlgorithm_(iConfig.getParameter<std::string>("jetAlgorithm")),
       rParam_(iConfig.getParameter<double>("rParam")),
@@ -376,6 +378,9 @@ void JetFlavourClustering::produce(edm::Event& iEvent, const edm::EventSetup& iS
 
   edm::Handle<reco::GenParticleRefVector> partons;
   iEvent.getByToken(partonsToken_, partons);
+
+  edm::Handle<reco::GenParticleRefVector> finalPartons;
+  iEvent.getByToken(finalPartonsToken_, finalPartons);
 
   edm::Handle<edm::ValueMap<float>> weights;
   if (!weightsToken_.isUninitialized())
