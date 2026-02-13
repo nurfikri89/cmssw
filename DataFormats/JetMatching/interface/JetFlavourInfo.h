@@ -2,6 +2,7 @@
 #define DataFormats_JetMatching_JetFlavourInfo_H
 
 #include <array>
+#include <string>
 #include <vector>
 #include "DataFormats/HepMCCandidate/interface/GenParticle.h"
 #include "DataFormats/HepMCCandidate/interface/GenParticleFwd.h"
@@ -36,6 +37,24 @@ namespace reco {
   // Number of fastjet::contrib flavour definition algorithms
   constexpr size_t kAlgoFlavCount = 5;
   constexpr size_t kAlgoArrayLen = 7;
+
+  /// Get algorithm name as string
+  inline std::string getAlgoName(const FlavAlgo& algo) {
+    switch (algo) {
+      case FlavAlgo::kCMP:
+        return "CMP";
+      case FlavAlgo::kGHS:
+        return "GHS";
+      case FlavAlgo::kIFN:
+        return "IFN";
+      case FlavAlgo::kGHSFull:
+        return "GHSFull";
+      case FlavAlgo::kGHSInlineParton:
+        return "GHSInlineParton";
+      default:
+        return "Unknown";
+    }
+  }
 
   class JetFlavourInfo {
   public:
@@ -77,6 +96,8 @@ namespace reco {
     bool haveAlgoFlav(const FlavAlgo& algo) const { return !m_fjContribFlav[static_cast<size_t>(algo)].empty(); }
     /// the casting is important to ensure the algoNum is valid
     bool haveAlgoFlav(const uint8_t& algoNum) const { return haveAlgoFlav(static_cast<FlavAlgo>(algoNum)); }
+    /// the casting is important to ensure the algoNum is valid
+    bool haveAlgoFlav(const size_t& algoNum) const { return haveAlgoFlav(static_cast<FlavAlgo>(algoNum)); }
     /// Set the flavour defined by some fastjet::contrib algorithm, on one digit, only if an array already exists.
     void setAlgoFlav(const FlavAlgo& algo, const fastjet::contrib::FlavInfo& fjFlavInfo) {
       m_fjContribFlav[static_cast<int>(algo)].assign(fjFlavInfo._flav_content,
@@ -176,12 +197,14 @@ namespace reco {
     }
     /// Obtain the flavour defined by some fastjet::contrib algorithm, either by digit or by array.
     /// Support uint8_t input as indicator for the algorithm to allow NanoAOD-level reading.
-    int getAlgoFlav(const uint8_t& algoNum, const unsigned int& iflav) {
+    int getAlgoFlav(const uint8_t& algoNum, const unsigned int& iflav) const {
       return getAlgoFlav(static_cast<FlavAlgo>(algoNum), iflav);
     }
-    const std::vector<int>& getAlgoFlav(const uint8_t& algoNum) { return getAlgoFlav(static_cast<FlavAlgo>(algoNum)); }
-    int getAlgoFlavLeading(const uint8_t& algoNum) { return getAlgoFlavLeading(static_cast<FlavAlgo>(algoNum)); }
+    const std::vector<int>& getAlgoFlav(const uint8_t& algoNum) const { return getAlgoFlav(static_cast<FlavAlgo>(algoNum)); }
+    int getAlgoFlavLeading(const uint8_t& algoNum) const { return getAlgoFlavLeading(static_cast<FlavAlgo>(algoNum)); }
+    int getAlgoFlavLeading(const size_t& algoNum) const { return getAlgoFlavLeading(static_cast<FlavAlgo>(algoNum)); }
     uint32_t getAlgoFlavCode(const uint8_t& algoNum) const { return getAlgoFlavCode(static_cast<FlavAlgo>(algoNum)); }
+    uint32_t getAlgoFlavCode(const size_t& algoNum) const { return getAlgoFlavCode(static_cast<FlavAlgo>(algoNum)); }
     /// When needed, clear the flavour defined by some fastjet::contrib algorithm.
     void clearAlgoFlav(const FlavAlgo& algo) { m_fjContribFlav[static_cast<int>(algo)].clear(); }
     void clearAlgoFlav(const uint8_t& algoNum) { clearAlgoFlav(static_cast<FlavAlgo>(algoNum)); }

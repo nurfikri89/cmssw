@@ -64,13 +64,9 @@ void GenJetFlavourTableProducer::produce(edm::Event& iEvent, const edm::EventSet
   std::vector<uint8_t> hadronFlavour;
   std::vector<uint8_t> nBHadrons;
   std::vector<uint8_t> nCHadrons;
-  // fastjet::contrib flavour info
-  std::vector<uint32_t> fjContribGHSAlgoFlav;
-  std::vector<uint32_t> fjContribGHSFullAlgoFlav;
-  std::vector<uint32_t> fjContribGHSInlinePartonFlav;
-  std::vector<int16_t> fjContribGHSAlgoLeadingFlav;
-  std::vector<int16_t> fjContribGHSFullAlgoleadingFlav;
-  std::vector<int16_t> fjContribGHSInlinePartonLeadingFlav;
+  // fastjet::contrib flavour info - initialize vectors for each algorithm
+  std::vector<std::vector<uint32_t>> fjAlgoFlavs(reco::kAlgoFlavCount);
+  std::vector<std::vector<int16_t>> fjAlgoLeadingFlavs(reco::kAlgoFlavCount);
 
   for (const reco::GenJet& jet : jetsProd) {
     if (!cut_(jet))
@@ -83,30 +79,16 @@ void GenJetFlavourTableProducer::produce(edm::Event& iEvent, const edm::EventSet
         hadronFlavour.push_back(jetFlavourInfoMatching.second.getHadronFlavour());
         nBHadrons.push_back(jetFlavourInfoMatching.second.getbHadrons().size());
         nCHadrons.push_back(jetFlavourInfoMatching.second.getcHadrons().size());
+
         // fastjet::contrib flavour info
-        if (jetFlavourInfoMatching.second.haveAlgoFlav(reco::FlavAlgo::kGHS)) {
-          fjContribGHSAlgoFlav.push_back(jetFlavourInfoMatching.second.getAlgoFlavCode(reco::FlavAlgo::kGHS));
-          fjContribGHSAlgoLeadingFlav.push_back(jetFlavourInfoMatching.second.getAlgoFlavLeading(reco::FlavAlgo::kGHS));
-        } else {
-          fjContribGHSAlgoFlav.push_back(0);
-          fjContribGHSAlgoLeadingFlav.push_back(0);
-        }
-        if (jetFlavourInfoMatching.second.haveAlgoFlav(reco::FlavAlgo::kGHSFull)) {
-          fjContribGHSFullAlgoFlav.push_back(jetFlavourInfoMatching.second.getAlgoFlavCode(reco::FlavAlgo::kGHSFull));
-          fjContribGHSFullAlgoleadingFlav.push_back(
-              jetFlavourInfoMatching.second.getAlgoFlavLeading(reco::FlavAlgo::kGHSFull));
-        } else {
-          fjContribGHSFullAlgoFlav.push_back(0);
-          fjContribGHSFullAlgoleadingFlav.push_back(0);
-        }
-        if (jetFlavourInfoMatching.second.haveAlgoFlav(reco::FlavAlgo::kGHSInlineParton)) {
-          fjContribGHSInlinePartonFlav.push_back(
-              jetFlavourInfoMatching.second.getAlgoFlavCode(reco::FlavAlgo::kGHSInlineParton));
-          fjContribGHSInlinePartonLeadingFlav.push_back(
-              jetFlavourInfoMatching.second.getAlgoFlavLeading(reco::FlavAlgo::kGHSInlineParton));
-        } else {
-          fjContribGHSInlinePartonFlav.push_back(0);
-          fjContribGHSInlinePartonLeadingFlav.push_back(0);
+        for (size_t i = 0; i < reco::kAlgoFlavCount; ++i) {
+          if (jetFlavourInfoMatching.second.haveAlgoFlav(i)) {
+            fjAlgoFlavs[i].push_back(jetFlavourInfoMatching.second.getAlgoFlavCode(i));
+            fjAlgoLeadingFlavs[i].push_back(jetFlavourInfoMatching.second.getAlgoFlavLeading(i));
+          } else {
+            fjAlgoFlavs[i].push_back(0);
+            fjAlgoLeadingFlavs[i].push_back(0);
+          }
         }
         matched = true;
         break;
@@ -118,12 +100,10 @@ void GenJetFlavourTableProducer::produce(edm::Event& iEvent, const edm::EventSet
       nBHadrons.push_back(0);
       nCHadrons.push_back(0);
       // fastjet::contrib flavour info
-      fjContribGHSAlgoFlav.push_back(0);
-      fjContribGHSFullAlgoFlav.push_back(0);
-      fjContribGHSAlgoLeadingFlav.push_back(0);
-      fjContribGHSFullAlgoleadingFlav.push_back(0);
-      fjContribGHSInlinePartonFlav.push_back(0);
-      fjContribGHSInlinePartonLeadingFlav.push_back(0);
+      for (size_t i = 0; i < reco::kAlgoFlavCount; ++i) {
+        fjAlgoFlavs[i].push_back(0);
+        fjAlgoLeadingFlavs[i].push_back(0);
+      }
     }
   }
 
@@ -132,24 +112,13 @@ void GenJetFlavourTableProducer::produce(edm::Event& iEvent, const edm::EventSet
   tab->addColumn<uint8_t>("hadronFlavour", hadronFlavour, "flavour from hadron ghost clustering");
   tab->addColumn<uint8_t>("nBHadrons", nBHadrons, "number of b-hadrons");
   tab->addColumn<uint8_t>("nCHadrons", nCHadrons, "number of c-hadrons");
-  tab->addColumn<uint32_t>(
-      "ghsFlavCode", fjContribGHSAlgoFlav, "new fastjet::contrib GHS flavour info, encoded as integer");
-  tab->addColumn<uint32_t>("ghsFullFlavCode",
-                           fjContribGHSFullAlgoFlav,
-                           "new fastjet::contrib GHS full algorithm flavour info, encoded as integer");
-  tab->addColumn<uint32_t>("ghsInlinePartonFlavCode",
-                            fjContribGHSInlinePartonFlav,
-                            "new fastjet::contrib GHS inline parton flavour info, encoded as integer");
-  tab->addColumn<int16_t>("ghsFlavLeading",
-                          fjContribGHSAlgoLeadingFlav,
-                          "new fastjet::contrib GHS flavour info, leading flavour only, encoded as integer");
-  tab->addColumn<int16_t>(
-      "ghsFullFlavLeading",
-      fjContribGHSFullAlgoleadingFlav,
-      "new fastjet::contrib GHS full algorithm flavour info, leading flavour only, encoded as integer");
-  tab->addColumn<int16_t>("ghsInlinePartonFlavLeading",
-                          fjContribGHSInlinePartonLeadingFlav,
-                          "new fastjet::contrib GHS inline parton flavour info, leading flavour only, encoded as integer");
+  for (size_t i = 0; i < reco::kAlgoFlavCount; ++i) {
+    std::string algoName = reco::getAlgoName(static_cast<reco::FlavAlgo>(i));
+    tab->addColumn<uint32_t>(algoName + "FlavCode", fjAlgoFlavs[i], "flavour code from " + algoName);
+    tab->addColumn<int16_t>(algoName + "FlavLeading",
+                            fjAlgoLeadingFlavs[i],
+                            "leading flavour from " + algoName);
+  }
 
   iEvent.put(std::move(tab));
 }
