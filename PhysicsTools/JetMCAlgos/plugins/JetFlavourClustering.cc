@@ -237,24 +237,31 @@ private:
   const double relPtTolerance_;
   const bool hadronFlavourHasPriority_;
 
-  /// New flavour definition algorithm-specific parameters
-  /// - GHS algorithm-specific parameters
-  const double ghsAlgoAlpha_;
-  const double ghsAlgoOmega_;
-  const double ghsAlgoPtMin_;  // Minimum Pt for GHS algorithm jets, default is 0.0
-  /// Choosing the flavour summation scheme
-  const std::string ghsAlgoFlavSummationSchemeStr_;
-  std::shared_ptr<fastjet::contrib::FlavRecombiner> ghsAlgoFlavRecombinerPtr_;
-  /// Flags for new flavour definition algorithm
-  /// - General logic: require explicit configuration; will double-check if full gen particles collection is given.
-  const bool enableGHSAlgoFlavour_;
+  /// GHS algorithm
+  struct GHSParams {
+    bool enabled;
+    double alpha;
+    double omega;
+    double ptMin;
+    std::string flavSummationScheme;
+    std::shared_ptr<fastjet::contrib::FlavRecombiner> flavRecombiner;
+  };
+  GHSParams ghsParams_;
+
+  /// IFN algorithm
+  struct IFNParams {
+    bool enabled;
+    double alpha;
+    double omega;
+    double ptMin;
+    std::string flavSummationScheme;
+    std::shared_ptr<fastjet::contrib::FlavRecombiner> flavRecombiner;
+  };
+  IFNParams ifnParams_;
 
   const bool useSubjets_;
 
   const bool useLeptons_;
-
-  /// Flag for introducing full gen Particle collection, only needed when some new jet flavour definition is used.
-  const bool enableAlgoFlav_;
 
   ClusterSequencePtr fjClusterSeq_;
   JetDefPtr fjJetDefinition_;
@@ -286,22 +293,8 @@ JetFlavourClustering::JetFlavourClustering(const edm::ParameterSet& iConfig)
               : 1e-03),  // 0.1% relative difference in Pt should be sufficient to detect possible misconfigurations
       hadronFlavourHasPriority_(iConfig.getParameter<bool>("hadronFlavourHasPriority")),
 
-      /// New jet flavour definition algorithm-specific parameters
-      ghsAlgoAlpha_(iConfig.exists("ghsAlgoAlpha") ? iConfig.getParameter<double>("ghsAlgoAlpha") : 1.0),
-      ghsAlgoOmega_(iConfig.exists("ghsAlgoOmega") ? iConfig.getParameter<double>("ghsAlgoOmega") : 2.0),
-      ghsAlgoPtMin_(iConfig.exists("ghsAlgoPtMin") ? iConfig.getParameter<double>("ghsAlgoPtMin")
-                                                   : 1e6 * ghostRescaling_),
-      /// Choosing the flavour summation scheme for Fastjet-contrib Flavour Definition algorithms
-      ghsAlgoFlavSummationSchemeStr_(iConfig.exists("ghsAlgoFlavSummationScheme")
-                                         ? iConfig.getParameter<std::string>("ghsAlgoFlavSummationScheme")
-                                         : "net_flav"),
-      /// Flags for enabling new flavour definition algorithm. Double-check if full gen particles collection is given.
-      enableGHSAlgoFlavour_(iConfig.exists("enableGHSAlgoFlavour") ? iConfig.getParameter<bool>("enableGHSAlgoFlavour")
-                                                                   : true),
-
       useSubjets_(iConfig.exists("groomedJets") && iConfig.exists("subjets")),
-      useLeptons_(iConfig.exists("leptons")),
-      enableAlgoFlav_(enableGHSAlgoFlavour_)
+      useLeptons_(iConfig.exists("leptons"))
 
 {
   // register your products
@@ -322,22 +315,70 @@ JetFlavourClustering::JetFlavourClustering(const edm::ParameterSet& iConfig)
   else
     throw cms::Exception("InvalidJetAlgorithm") << "Jet clustering algorithm is invalid: " << jetAlgorithm_
                                                 << ", use CambridgeAachen | Kt | AntiKt" << std::endl;
-  // set the flavour recombiner
-  if (enableGHSAlgoFlavour_) {
-    if (ghsAlgoFlavSummationSchemeStr_ == "net_flav") {
-      ghsAlgoFlavRecombinerPtr_ =
-          std::make_shared<fastjet::contrib::FlavRecombiner>(fastjet::contrib::FlavRecombiner::FlavSummation::net);
-    } else if (ghsAlgoFlavSummationSchemeStr_ == "mod2_flav") {
-      ghsAlgoFlavRecombinerPtr_ =
-          std::make_shared<fastjet::contrib::FlavRecombiner>(fastjet::contrib::FlavRecombiner::FlavSummation::modulo_2);
-    } else if (ghsAlgoFlavSummationSchemeStr_ == "any_flav") {
-      ghsAlgoFlavRecombinerPtr_ =
-          std::make_shared<fastjet::contrib::FlavRecombiner>(fastjet::contrib::FlavRecombiner::FlavSummation::any_abs);
-    } else {
-      throw cms::Exception("InvalidGHSAlgoFlavourSummationScheme")
-          << "GHS flavour summation scheme is invalid: " << ghsAlgoFlavSummationSchemeStr_
-          << ", use net_flav | mod2_flav | any_flav" << std::endl;
+
+  /// Configure flavour algorithms
+  // GHS 
+  if (iConfig.exists("ghsAlgorithm")) {
+    edm::ParameterSet ghsPSet = iConfig.getParameter<edm::ParameterSet>("ghsAlgorithm");
+    ghsParams_.enabled = ghsPSet.getParameter<bool>("enabled");
+    
+    if (ghsParams_.enabled) {
+      ghsParams_.alpha = ghsPSet.getParameter<double>("alpha");
+      ghsParams_.omega = ghsPSet.getParameter<double>("omega");
+      ghsParams_.ptMin = ghsPSet.getParameter<double>("ptMin");
+      ghsParams_.flavSummationScheme = ghsPSet.getParameter<std::string>("flavSummationScheme");
+      
+      // Set up the flavour recombiner based on summation scheme
+      if (ghsParams_.flavSummationScheme == "net_flav" || ghsParams_.flavSummationScheme == "net") {
+        ghsParams_.flavRecombiner =
+            std::make_shared<fastjet::contrib::FlavRecombiner>(fastjet::contrib::FlavRecombiner::FlavSummation::net);
+      } else if (ghsParams_.flavSummationScheme == "modulo_2" || ghsParams_.flavSummationScheme == "mod2") {
+        ghsParams_.flavRecombiner =
+            std::make_shared<fastjet::contrib::FlavRecombiner>(fastjet::contrib::FlavRecombiner::FlavSummation::modulo_2);
+      } else if (ghsParams_.flavSummationScheme == "any_abs" || ghsParams_.flavSummationScheme == "any") {
+        ghsParams_.flavRecombiner =
+            std::make_shared<fastjet::contrib::FlavRecombiner>(fastjet::contrib::FlavRecombiner::FlavSummation::any_abs);
+      } else {
+        throw cms::Exception("InvalidGHSFlavourSummationScheme")
+            << "GHS flavour summation scheme is invalid: " << ghsParams_.flavSummationScheme
+            << ", use net_flav | modulo_2 | any_abs" << std::endl;
+      }
     }
+  } else {
+    // Backward compatibility: if ghsAlgorithm PSet doesn't exist, GHS is disabled
+    ghsParams_.enabled = false;
+  }
+
+  // IFN
+  if (iConfig.exists("ifnAlgorithm")) {
+    edm::ParameterSet ifnPSet = iConfig.getParameter<edm::ParameterSet>("ifnAlgorithm");
+    ifnParams_.enabled = ifnPSet.getParameter<bool>("enabled");
+
+    if (ifnParams_.enabled) {
+      ifnParams_.alpha = ifnPSet.getParameter<double>("alpha");
+      ifnParams_.omega = ifnPSet.getParameter<double>("omega");
+      ifnParams_.ptMin = ifnPSet.getParameter<double>("ptMin");
+      ifnParams_.flavSummationScheme = ifnPSet.getParameter<std::string>("flavSummationScheme");
+      
+      // Set up the flavour recombiner based on summation scheme
+      if (ifnParams_.flavSummationScheme == "net_flav" || ifnParams_.flavSummationScheme == "net") {
+        ifnParams_.flavRecombiner =
+            std::make_shared<fastjet::contrib::FlavRecombiner>(fastjet::contrib::FlavRecombiner::FlavSummation::net);
+      } else if (ifnParams_.flavSummationScheme == "modulo_2" || ifnParams_.flavSummationScheme == "mod2") {
+        ifnParams_.flavRecombiner =
+            std::make_shared<fastjet::contrib::FlavRecombiner>(fastjet::contrib::FlavRecombiner::FlavSummation::modulo_2);
+      } else if (ifnParams_.flavSummationScheme == "any_abs" || ifnParams_.flavSummationScheme == "any") {
+        ifnParams_.flavRecombiner =
+            std::make_shared<fastjet::contrib::FlavRecombiner>(fastjet::contrib::FlavRecombiner::FlavSummation::any_abs);
+      } else {
+        throw cms::Exception("InvalidIFNFlavourSummationScheme")
+            << "IFN flavour summation scheme is invalid: " << ifnParams_.flavSummationScheme
+            << ", use net_flav | modulo_2 | any_abs" << std::endl;
+      }
+    }
+  } else {
+    // Backward compatibility: if ifnAlgorithm PSet doesn't exist, IFN is disabled
+    ifnParams_.enabled = false;
   }
 
   if (useSubjets_) {
@@ -434,7 +475,7 @@ void JetFlavourClustering::produce(edm::Event& iEvent, const edm::EventSetup& iS
     }
   }
   // copy the jets for GHS algorithm and add the "ghost" final partons
-  if (enableGHSAlgoFlavour_) {
+  if (ghsParams_.enabled) {
     // insert "ghost" final partons in the vector of constituents
     insertGhostFinalPartons(partons, ghostRescaling_, fjInputsForGHSAlgo);
     // Produce the GHS algorithm flavoured jets with refactored code.
@@ -604,7 +645,7 @@ void JetFlavourClustering::produce(edm::Event& iEvent, const edm::EventSetup& iS
                             << " , phi = "  << clusteredPartons.at(p)->phi() << std::endl;
       }
       // begin setting the GHS algorithm flavour information
-      if (enableGHSAlgoFlavour_) {
+      if (ghsParams_.enabled) {
         // check if the GHS algorithm flavour information is available
         if (fjGHSAlgoJetMatchingIndices.at(i) >= 0) {
           (*jetFlavourInfos)[jets->refAt(i)].setAlgoFlav(
@@ -1046,7 +1087,7 @@ void JetFlavourClustering::makeGHSAlgoJets(const edm::Handle<edm::View<reco::Jet
   insertGhostFinalPartons(inputGenPartons, ghostRescaling_, jetAndGhostPartons, true);
   // Clustering with the algorithm specified by the user.
   ClusterSequencePtr baseClusterSeq = std::make_shared<fastjet::ClusterSequence>(jetAndGhostPartons, *fjJetDefinition_);
-  fastjet::Selector jetPtSelector = fastjet::SelectorPtMin(ghsAlgoPtMin_);
+  fastjet::Selector jetPtSelector = fastjet::SelectorPtMin(ghsParams_.ptMin);
   std::vector<fastjet::PseudoJet> baseJets = fastjet::sorted_by_pt(baseClusterSeq->inclusive_jets(jetPtMin_));
   std::vector<fastjet::PseudoJet> hardJets = jetPtSelector(baseJets);
   if (hardJets.size() == 0) {
@@ -1063,9 +1104,9 @@ void JetFlavourClustering::makeGHSAlgoJets(const edm::Handle<edm::View<reco::Jet
   GHSInfo ghsInfo;
   ghsInfo.jets = finalJets;
   ghsInfo.njets = njets;
-  ghsInfo.alpha = ghsAlgoAlpha_;
-  ghsInfo.omega = ghsAlgoOmega_;
-  ghsInfo.flav_recombiner = *ghsAlgoFlavRecombinerPtr_;
+  ghsInfo.alpha = ghsParams_.alpha;
+  ghsInfo.omega = ghsParams_.omega;
+  ghsInfo.flav_recombiner = *ghsParams_.flavRecombiner;
 
   /// Set up elements for GHS Algorithm
   for (auto& jet : finalJets) {
@@ -1077,7 +1118,7 @@ void JetFlavourClustering::makeGHSAlgoJets(const edm::Handle<edm::View<reco::Jet
 
   /// Adding constituents. Use only ghost partons and do back-scaling.
   for (auto constituent : inputsFromCS) {
-    if (constituent.has_user_info<GhostInfo>() || constituent.pt() < ghsAlgoPtMin_) {
+    if (constituent.has_user_info<GhostInfo>() || constituent.pt() < ghsParams_.ptMin) {
       constituent.set_user_index(0);
       for (int i = 0; i < njets; ++i) {
         if (constituent.is_inside(finalJets[i])) {
@@ -1134,7 +1175,7 @@ void JetFlavourClustering::makeGHSAlgoJets(const edm::Handle<edm::View<reco::Jet
         fastjet::contrib::FlavInfo flavB =
             jetAndPartons[iB].user_info<fastjet::contrib::FlavHistory>().current_flavour();
         finalJetsFlavInfo[iA] = finalJetsFlavInfo[iA] + flavB;
-        ghsAlgoFlavRecombinerPtr_->apply_summation_choice(finalJetsFlavInfo[iA]);
+        ghsParams_.flavRecombiner->apply_summation_choice(finalJetsFlavInfo[iA]);
         nnh.remove_jet(iB);
       } else {
         //> iA & iB are both flavour inputs
@@ -1152,7 +1193,7 @@ void JetFlavourClustering::makeGHSAlgoJets(const edm::Handle<edm::View<reco::Jet
         }
         fastjet::contrib::FlavInfo flav = fastjet::contrib::FlavHistory::current_flavour_of(jetAndPartons[iA]) +
                                           fastjet::contrib::FlavHistory::current_flavour_of(jetAndPartons[iB]);
-        ghsAlgoFlavRecombinerPtr_->apply_summation_choice(flav);
+        ghsParams_.flavRecombiner->apply_summation_choice(flav);
         /// set FlavInfo attribute
         mergedFlavoured.set_user_info(new fastjet::contrib::FlavHistory(flav));
         jetAndPartons.push_back(mergedFlavoured);
@@ -1217,7 +1258,7 @@ void JetFlavourClustering::makeGHSFullAlgoJets(const edm::Handle<edm::View<reco:
   insertGhostFinalPartons(inputGenPartons, ghostRescaling_, jetAndGhostPartons, true);
   // Clustering with the algorithm specified by the user.
   ClusterSequencePtr baseClusterSeq = std::make_shared<fastjet::ClusterSequence>(jetAndGhostPartons, *fjJetDefinition_);
-  fastjet::Selector jetPtSelector = fastjet::SelectorPtMin(ghsAlgoPtMin_);
+  fastjet::Selector jetPtSelector = fastjet::SelectorPtMin(ghsParams_.ptMin);
   std::vector<fastjet::PseudoJet> baseJets = fastjet::sorted_by_pt(baseClusterSeq->inclusive_jets(jetPtMin_));
   std::vector<fastjet::PseudoJet> hardJets = jetPtSelector(baseJets);
   if (hardJets.size() == 0) {
@@ -1234,9 +1275,9 @@ void JetFlavourClustering::makeGHSFullAlgoJets(const edm::Handle<edm::View<reco:
   GHSInfo ghsInfo;
   ghsInfo.jets = finalJets;
   ghsInfo.njets = njets;
-  ghsInfo.alpha = ghsAlgoAlpha_;
-  ghsInfo.omega = ghsAlgoOmega_;
-  ghsInfo.flav_recombiner = *ghsAlgoFlavRecombinerPtr_;
+  ghsInfo.alpha = ghsParams_.alpha;
+  ghsInfo.omega = ghsParams_.omega;
+  ghsInfo.flav_recombiner = *ghsParams_.flavRecombiner;
 
   /// Set up elements for GHS Algorithm
   for (auto& jet : finalJets) {
@@ -1318,7 +1359,7 @@ void JetFlavourClustering::makeGHSFullAlgoJets(const edm::Handle<edm::View<reco:
         fastjet::contrib::FlavInfo flavB =
             jetAndPartons[iB].user_info<fastjet::contrib::FlavHistory>().current_flavour();
         finalJetsFlavInfo[iA] = finalJetsFlavInfo[iA] + flavB;
-        ghsAlgoFlavRecombinerPtr_->apply_summation_choice(finalJetsFlavInfo[iA]);
+        ghsParams_.flavRecombiner->apply_summation_choice(finalJetsFlavInfo[iA]);
         nnh.remove_jet(iB);
         std::cout << "       [VERBOSE] Merging flavour from iB = " << iB << " to jet iA = " << iA << std::endl;
       } else {
@@ -1339,7 +1380,7 @@ void JetFlavourClustering::makeGHSFullAlgoJets(const edm::Handle<edm::View<reco:
         }
         fastjet::contrib::FlavInfo flav = fastjet::contrib::FlavHistory::current_flavour_of(jetAndPartons[iA]) +
                                           fastjet::contrib::FlavHistory::current_flavour_of(jetAndPartons[iB]);
-        ghsAlgoFlavRecombinerPtr_->apply_summation_choice(flav);
+        ghsParams_.flavRecombiner->apply_summation_choice(flav);
         /// set FlavInfo attribute
         mergedFlavoured.set_user_info(new fastjet::contrib::FlavHistory(flav));
         jetAndPartons.push_back(mergedFlavoured);
@@ -1412,9 +1453,9 @@ void JetFlavourClustering::GHSCore(const std::vector<fastjet::PseudoJet>& inputJ
   GHSInfo ghsInfo;
   ghsInfo.jets = outputGHSAlgoJets;
   ghsInfo.njets = njets;
-  ghsInfo.alpha = ghsAlgoAlpha_;
-  ghsInfo.omega = ghsAlgoOmega_;
-  ghsInfo.flav_recombiner = *ghsAlgoFlavRecombinerPtr_;
+  ghsInfo.alpha = ghsParams_.alpha;
+  ghsInfo.omega = ghsParams_.omega;
+  ghsInfo.flav_recombiner = *ghsParams_.flavRecombiner;
   /// Final check of input particles
   if (inputJetAndFlavParticles.size() == 0) {
     return;
@@ -1456,7 +1497,7 @@ void JetFlavourClustering::GHSCore(const std::vector<fastjet::PseudoJet>& inputJ
         fastjet::contrib::FlavInfo flavB =
             inputJetAndFlavParticles[iB].user_info<fastjet::contrib::FlavHistory>().current_flavour();
         finalJetsFlavInfo[iA] = finalJetsFlavInfo[iA] + flavB;
-        ghsAlgoFlavRecombinerPtr_->apply_summation_choice(finalJetsFlavInfo[iA]);
+        ghsParams_.flavRecombiner->apply_summation_choice(finalJetsFlavInfo[iA]);
         nnh.remove_jet(iB);
         std::cout << "       [VERBOSE] Merging flavour from iB = " << iB << " to jet iA = " << iA << std::endl;
       } else {
@@ -1477,7 +1518,7 @@ void JetFlavourClustering::GHSCore(const std::vector<fastjet::PseudoJet>& inputJ
         }
         fastjet::contrib::FlavInfo flav = fastjet::contrib::FlavHistory::current_flavour_of(inputJetAndFlavParticles[iA]) +
                                           fastjet::contrib::FlavHistory::current_flavour_of(inputJetAndFlavParticles[iB]);
-        ghsAlgoFlavRecombinerPtr_->apply_summation_choice(flav);
+        ghsParams_.flavRecombiner->apply_summation_choice(flav);
         /// set FlavInfo attribute
         mergedFlavoured.set_user_info(new fastjet::contrib::FlavHistory(flav));
         inputJetAndFlavParticles.push_back(mergedFlavoured);
