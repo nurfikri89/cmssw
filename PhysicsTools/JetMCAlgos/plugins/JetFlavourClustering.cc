@@ -285,7 +285,6 @@ private:
     bool enabled;
     double alpha;
     double omega;
-    double ptMin;
     std::string flavSummationScheme;
     std::shared_ptr<fastjet::contrib::FlavRecombiner> flavRecombiner;
   };
