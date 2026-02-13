@@ -246,8 +246,6 @@ private:
 
   bool isFinalParton(const reco::GenParticleRef& particle) const;
 
-  void makeFinalPartonSet(const reco::GenParticleRefVector& particles, reco::GenParticleRefVector& finalPartons);
-
   void assignToSubjets(const reco::GenParticleRefVector& clusteredParticles,
                        const edm::Handle<edm::View<reco::Jet>>& subjets,
                        const std::vector<int>& subjetIndices,
@@ -1083,22 +1081,6 @@ bool JetFlavourClustering::isFinalParton(const reco::GenParticleRef& particle) c
     }
   }
   return !hasPartonDaughter;  // Return true if no parton daughters are found.
-}
-
-// ------------ method produce a list of partons without parton daughters ------------
-void JetFlavourClustering::makeFinalPartonSet(const reco::GenParticleRefVector& particles,
-                                              reco::GenParticleRefVector& finalPartons) {
-  // Verify if finalPartons is empty.
-  if (!finalPartons.empty()) {
-    throw cms::Exception("FinalPartonsNotEmpty")
-        << "The vector of final partons is not empty. Please check the configuration.";
-  }
-  // Loop over particles and check if they are final partons.
-  for (const auto& particle : particles) {
-    if (isFinalParton(particle)) {
-      finalPartons.push_back(particle);  // Add final parton to the vector.
-    }
-  }
 }
 
 // ------------ method that produces GHS algorithm flavoured jets as a full-chain ------------
