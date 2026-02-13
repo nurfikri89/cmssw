@@ -117,35 +117,69 @@ typedef std::shared_ptr<fastjet::JetDefinition> JetDefPtr;
 //
 // class declaration
 //
-class GhostInfo : public fastjet::PseudoJet::UserInfoBase {
+class GhostInfo : public FlavInfo {
 public:
-  GhostInfo(const bool& isHadron,
-            const bool& isbHadron,
-            const bool& isParton,
-            const bool& isLepton,
-            const reco::GenParticleRef& particleRef)
-      : m_particleRef(particleRef) {
-    m_type = 0;
-    if (isHadron)
-      m_type |= (1 << 0);
-    if (isbHadron)
-      m_type |= (1 << 1);
-    if (isParton)
-      m_type |= (1 << 2);
-    if (isLepton)
-      m_type |= (1 << 3);
+  GhostInfo(bool isHadron,
+            bool isbHadron,
+            bool isParton,
+            bool isLepton,
+            const reco::GenParticleRef & particleRef)
+    : FlavInfo(make_flavinfo(isHadron, isbHadron, isParton, isLepton)),
+      m_particleRef(particleRef),
+      m_type(0)
+  {
+    if (isHadron)  m_type |= (1 << 0);
+    if (isbHadron) m_type |= (1 << 1);
+    if (isParton)  m_type |= (1 << 2);
+    if (isLepton)  m_type |= (1 << 3);
   }
 
-  const bool isHadron() const { return (m_type & (1 << 0)); }
-  const bool isbHadron() const { return (m_type & (1 << 1)); }
-  const bool isParton() const { return (m_type & (1 << 2)); }
-  const bool isLepton() const { return (m_type & (1 << 3)); }
-  const reco::GenParticleRef& particleRef() const { return m_particleRef; }
+  bool isHadron()  const { return m_type & (1 << 0); }
+  bool isbHadron() const { return m_type & (1 << 1); }
+  bool isParton()  const { return m_type & (1 << 2); }
+  bool isLepton()  const { return m_type & (1 << 3); }
+
+  const reco::GenParticleRef & particleRef() const {
+    return m_particleRef;
+  }
+
+private:
+  static FlavInfo make_flavinfo(bool isHadron,
+                               bool isbHadron,
+                               bool isParton,
+                               bool isLepton) {
+    // Priority order matters
+    if (isbHadron) {
+      FlavInfo f;
+      f.set_flav(5, 1); // b
+      return f;
+    }
+
+    if (isHadron) {
+      // generic light hadron: mark as flavourful but not specific
+      FlavInfo f;
+      f.set_flav(1, 1); // d as representative
+      return f;
+    }
+
+    if (isParton) {
+      return FlavInfo(21); // gluon
+    }
+
+    if (isLepton) {
+      FlavInfo f(0);
+      f.label_as_spectator();
+      return f;
+    }
+
+    return FlavInfo(0); // flavourless
+  }
 
 protected:
   const reco::GenParticleRef m_particleRef;
   int m_type;
 };
+
 
 class GhostFinalPartonInfo : public GhostInfo {
 public:
