@@ -46,6 +46,8 @@
 #include "DataFormats/Common/interface/OwnVector.h"
 #include "DataFormats/Common/interface/AtomicPtrCache.h"
 
+#include "fastjet/contrib/FlavInfo.hh"
+
 #include <numeric>
 
 // Define typedefs for convenience
@@ -110,6 +112,21 @@ namespace pat {
     int partonFlavour() const;
     /// return the hadron-based flavour of the jet
     int hadronFlavour() const;
+    /// return the GHS algorithm-derived flavour of the jet, using full std::vector<int>
+    const std::vector<int>& algoFlav(const reco::FlavAlgo& algo) const;
+    const std::vector<int>& algoFlav(const uint8_t& algoNum) const;
+    /// return the GHS algorithm-derived flavour of the jet, using bitwise encoding (0 as N/A)
+    uint algoFlavCode(const reco::FlavAlgo& algo) const;
+    uint algoFlavCode(const uint8_t& algoNum) const;
+    /// return the heaviest GHS flavour component of the jet.
+    int8_t algoFlavLeading(const reco::FlavAlgo& algo) const;
+    int8_t algoFlavLeading(const uint8_t& algoNum) const;
+    /// check if result from some flavour algorithm has been set
+    bool haveAlgoFlav(const reco::FlavAlgo& algo) const;
+    bool haveAlgoFlav(const uint8_t& algoNum) const;
+    /// [DEBUG]
+    int ghsFlavour() const;
+    int ghsFullFlavour() const;
     /// return the JetFlavourInfo of the jet
     const reco::JetFlavourInfo& jetFlavourInfo() const;
 
@@ -259,6 +276,13 @@ namespace pat {
     void setPartonFlavour(int partonFl);
     /// method to set the hadron-based flavour of the jet
     void setHadronFlavour(int hadronFl);
+    /// method to set some algorithm-derived flavour of the jet
+    void setAlgoFlav(const reco::FlavAlgo& algo, const std::vector<int>& flav);
+    void setAlgoFlav(const reco::FlavAlgo& algo, const fastjet::contrib::FlavInfo& fjFlavInfo);
+    void setAlgoFlav(const reco::FlavAlgo& algo, const uint32_t& flavCode);
+    void setAlgoFlav(const uint8_t& algoNum, const std::vector<int>& flav);
+    void setAlgoFlav(const uint8_t& algoNum, const fastjet::contrib::FlavInfo& fjFlavInfo);
+    void setAlgoFlav(const uint8_t& algoNum, const uint32_t& flavCode);
     /// method to set the JetFlavourInfo of the jet
     void setJetFlavourInfo(const reco::JetFlavourInfo& jetFlavourInfo);
 

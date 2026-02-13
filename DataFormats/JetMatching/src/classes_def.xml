@@ -1,5 +1,7 @@
 <lcgdict>
-  <class name="reco::JetFlavourInfo" ClassVersion="10">
+  <class name="reco::JetFlavourInfo" ClassVersion="12">
+   <version ClassVersion="12" checksum="2798958198"/>
+   <version ClassVersion="11" checksum="1296724233"/>
    <version ClassVersion="10" checksum="1683584268"/>
   </class>
   <class name="std::vector<reco::JetFlavourInfo>"/>

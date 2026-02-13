@@ -239,6 +239,44 @@ int Jet::partonFlavour() const { return jetFlavourInfo_.getPartonFlavour(); }
 /// return the hadron-based flavour of the jet
 int Jet::hadronFlavour() const { return jetFlavourInfo_.getHadronFlavour(); }
 
+/// return the GHS algorithm-derived flavour of the jet, using bitwise encoding (0 as N/A)
+int Jet::ghsFlavour() const {
+  return jetFlavourInfo_.haveAlgoFlav(reco::FlavAlgo::kGHS) ? jetFlavourInfo_.getAlgoFlavCode(reco::FlavAlgo::kGHS) : 0;
+}
+
+int Jet::ghsFullFlavour() const {
+  return jetFlavourInfo_.haveAlgoFlav(reco::FlavAlgo::kGHSFull)
+             ? jetFlavourInfo_.getAlgoFlavCode(reco::FlavAlgo::kGHSFull)
+             : 0;
+}
+
+/// return the GHS algorithm-derived flavour of the jet, using full std::vector<int>
+const std::vector<int>& Jet::algoFlav(const reco::FlavAlgo& algo) const { return jetFlavourInfo_.getAlgoFlav(algo); }
+
+const std::vector<int>& Jet::algoFlav(const uint8_t& algoNum) const {
+  return algoFlav(static_cast<const reco::FlavAlgo>(algoNum));
+}
+
+/// return the GHS algorithm-derived flavour of the jet, using bitwise encoding (0 as N/A)
+uint Jet::algoFlavCode(const reco::FlavAlgo& algo) const { return jetFlavourInfo_.getAlgoFlavCode(algo); }
+
+uint Jet::algoFlavCode(const uint8_t& algoNum) const {
+  return algoFlavCode(static_cast<const reco::FlavAlgo>(algoNum));
+}
+
+/// return the heaviest GHS flavour component of the jet.
+int8_t Jet::algoFlavLeading(const reco::FlavAlgo& algo) const { return jetFlavourInfo_.getAlgoFlavLeading(algo); }
+
+int8_t Jet::algoFlavLeading(const uint8_t& algoNum) const {
+  return algoFlavLeading(static_cast<const reco::FlavAlgo>(algoNum));
+}
+
+bool Jet::haveAlgoFlav(const reco::FlavAlgo& algo) const { return jetFlavourInfo_.haveAlgoFlav(algo); }
+
+bool Jet::haveAlgoFlav(const uint8_t& algoNum) const {
+  return haveAlgoFlav(static_cast<const reco::FlavAlgo>(algoNum));
+}
+
 /// return the JetFlavourInfo of the jet
 const reco::JetFlavourInfo& Jet::jetFlavourInfo() const { return jetFlavourInfo_; }
 
@@ -453,6 +491,26 @@ void Jet::setPartonFlavour(int partonFl) { jetFlavourInfo_.setPartonFlavour(part
 
 /// method to set the hadron-based flavour of the jet
 void Jet::setHadronFlavour(int hadronFl) { jetFlavourInfo_.setHadronFlavour(hadronFl); }
+
+/// method to set some algorithm-derived flavour of the jet
+void Jet::setAlgoFlav(const reco::FlavAlgo& algo, const std::vector<int>& flav) {
+  jetFlavourInfo_.setAlgoFlav(algo, flav);
+}
+void Jet::setAlgoFlav(const reco::FlavAlgo& algo, const fastjet::contrib::FlavInfo& fjFlavInfo) {
+  jetFlavourInfo_.setAlgoFlav(algo, fjFlavInfo);
+}
+void Jet::setAlgoFlav(const reco::FlavAlgo& algo, const uint32_t& flavCode) {
+  jetFlavourInfo_.setAlgoFlav(algo, flavCode);
+}
+void Jet::setAlgoFlav(const uint8_t& algoNum, const std::vector<int>& flav) {
+  setAlgoFlav(static_cast<const reco::FlavAlgo>(algoNum), flav);
+}
+void Jet::setAlgoFlav(const uint8_t& algoNum, const fastjet::contrib::FlavInfo& fjFlavInfo) {
+  setAlgoFlav(static_cast<const reco::FlavAlgo>(algoNum), fjFlavInfo);
+}
+void Jet::setAlgoFlav(const uint8_t& algoNum, const uint32_t& flavCode) {
+  setAlgoFlav(static_cast<const reco::FlavAlgo>(algoNum), flavCode);
+}
 
 /// method to set the JetFlavourInfo of the jet
 void Jet::setJetFlavourInfo(const reco::JetFlavourInfo& jetFlavourInfo) { jetFlavourInfo_ = jetFlavourInfo; }
