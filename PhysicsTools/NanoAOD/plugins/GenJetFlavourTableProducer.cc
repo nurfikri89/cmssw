@@ -20,7 +20,6 @@
 
 #include "CommonTools/Utils/interface/StringCutObjectSelector.h"
 #include "CommonTools/Utils/interface/StringObjectFunction.h"
-
 class GenJetFlavourTableProducer : public edm::stream::EDProducer<> {
 public:
   explicit GenJetFlavourTableProducer(const edm::ParameterSet& iConfig)
@@ -65,6 +64,13 @@ void GenJetFlavourTableProducer::produce(edm::Event& iEvent, const edm::EventSet
   std::vector<uint8_t> hadronFlavour;
   std::vector<uint8_t> nBHadrons;
   std::vector<uint8_t> nCHadrons;
+  // fastjet::contrib flavour info
+  std::vector<uint32_t> fjContribGHSAlgoFlav;
+  std::vector<uint32_t> fjContribGHSFullAlgoFlav;
+  std::vector<uint32_t> fjContribGHSInlinePartonFlav;
+  std::vector<int16_t> fjContribGHSAlgoLeadingFlav;
+  std::vector<int16_t> fjContribGHSFullAlgoleadingFlav;
+  std::vector<int16_t> fjContribGHSInlinePartonLeadingFlav;
 
   for (const reco::GenJet& jet : jetsProd) {
     if (!cut_(jet))
@@ -77,6 +83,31 @@ void GenJetFlavourTableProducer::produce(edm::Event& iEvent, const edm::EventSet
         hadronFlavour.push_back(jetFlavourInfoMatching.second.getHadronFlavour());
         nBHadrons.push_back(jetFlavourInfoMatching.second.getbHadrons().size());
         nCHadrons.push_back(jetFlavourInfoMatching.second.getcHadrons().size());
+        // fastjet::contrib flavour info
+        if (jetFlavourInfoMatching.second.haveAlgoFlav(reco::FlavAlgo::kGHS)) {
+          fjContribGHSAlgoFlav.push_back(jetFlavourInfoMatching.second.getAlgoFlavCode(reco::FlavAlgo::kGHS));
+          fjContribGHSAlgoLeadingFlav.push_back(jetFlavourInfoMatching.second.getAlgoFlavLeading(reco::FlavAlgo::kGHS));
+        } else {
+          fjContribGHSAlgoFlav.push_back(0);
+          fjContribGHSAlgoLeadingFlav.push_back(0);
+        }
+        if (jetFlavourInfoMatching.second.haveAlgoFlav(reco::FlavAlgo::kGHSFull)) {
+          fjContribGHSFullAlgoFlav.push_back(jetFlavourInfoMatching.second.getAlgoFlavCode(reco::FlavAlgo::kGHSFull));
+          fjContribGHSFullAlgoleadingFlav.push_back(
+              jetFlavourInfoMatching.second.getAlgoFlavLeading(reco::FlavAlgo::kGHSFull));
+        } else {
+          fjContribGHSFullAlgoFlav.push_back(0);
+          fjContribGHSFullAlgoleadingFlav.push_back(0);
+        }
+        if (jetFlavourInfoMatching.second.haveAlgoFlav(reco::FlavAlgo::kGHSInlineParton)) {
+          fjContribGHSInlinePartonFlav.push_back(
+              jetFlavourInfoMatching.second.getAlgoFlavCode(reco::FlavAlgo::kGHSInlineParton));
+          fjContribGHSInlinePartonLeadingFlav.push_back(
+              jetFlavourInfoMatching.second.getAlgoFlavLeading(reco::FlavAlgo::kGHSInlineParton));
+        } else {
+          fjContribGHSInlinePartonFlav.push_back(0);
+          fjContribGHSInlinePartonLeadingFlav.push_back(0);
+        }
         matched = true;
         break;
       }
@@ -86,6 +117,13 @@ void GenJetFlavourTableProducer::produce(edm::Event& iEvent, const edm::EventSet
       hadronFlavour.push_back(0);
       nBHadrons.push_back(0);
       nCHadrons.push_back(0);
+      // fastjet::contrib flavour info
+      fjContribGHSAlgoFlav.push_back(0);
+      fjContribGHSFullAlgoFlav.push_back(0);
+      fjContribGHSAlgoLeadingFlav.push_back(0);
+      fjContribGHSFullAlgoleadingFlav.push_back(0);
+      fjContribGHSInlinePartonFlav.push_back(0);
+      fjContribGHSInlinePartonLeadingFlav.push_back(0);
     }
   }
 
@@ -94,6 +132,24 @@ void GenJetFlavourTableProducer::produce(edm::Event& iEvent, const edm::EventSet
   tab->addColumn<uint8_t>("hadronFlavour", hadronFlavour, "flavour from hadron ghost clustering");
   tab->addColumn<uint8_t>("nBHadrons", nBHadrons, "number of b-hadrons");
   tab->addColumn<uint8_t>("nCHadrons", nCHadrons, "number of c-hadrons");
+  tab->addColumn<uint32_t>(
+      "ghsFlavCode", fjContribGHSAlgoFlav, "new fastjet::contrib GHS flavour info, encoded as integer");
+  tab->addColumn<uint32_t>("ghsFullFlavCode",
+                           fjContribGHSFullAlgoFlav,
+                           "new fastjet::contrib GHS full algorithm flavour info, encoded as integer");
+  tab->addColumn<uint32_t>("ghsInlinePartonFlavCode",
+                            fjContribGHSInlinePartonFlav,
+                            "new fastjet::contrib GHS inline parton flavour info, encoded as integer");
+  tab->addColumn<int16_t>("ghsFlavLeading",
+                          fjContribGHSAlgoLeadingFlav,
+                          "new fastjet::contrib GHS flavour info, leading flavour only, encoded as integer");
+  tab->addColumn<int16_t>(
+      "ghsFullFlavLeading",
+      fjContribGHSFullAlgoleadingFlav,
+      "new fastjet::contrib GHS full algorithm flavour info, leading flavour only, encoded as integer");
+  tab->addColumn<int16_t>("ghsInlinePartonFlavLeading",
+                          fjContribGHSInlinePartonLeadingFlav,
+                          "new fastjet::contrib GHS inline parton flavour info, leading flavour only, encoded as integer");
 
   iEvent.put(std::move(tab));
 }
