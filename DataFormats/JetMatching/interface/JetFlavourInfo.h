@@ -33,9 +33,9 @@ namespace reco {
  */
   /// typedef for
   /// enumeration class for the fastjet::contrib flavour definition algorithms
-  enum class FlavAlgo { kCMP, kGHS, kIFN, kGHSFull, kGHSInlineParton};
+  enum class FlavAlgo { kCMP, kGHS, kIFN };
   // Number of fastjet::contrib flavour definition algorithms
-  constexpr size_t kAlgoFlavCount = 5;
+  constexpr size_t kAlgoFlavCount = 3;
   constexpr size_t kAlgoArrayLen = 7;
 
   /// Get algorithm name as string
@@ -47,10 +47,6 @@ namespace reco {
         return "GHS";
       case FlavAlgo::kIFN:
         return "IFN";
-      case FlavAlgo::kGHSFull:
-        return "GHSFull";
-      case FlavAlgo::kGHSInlineParton:
-        return "GHSInlineParton";
       default:
         return "Unknown";
     }
