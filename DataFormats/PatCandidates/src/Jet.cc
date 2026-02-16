@@ -239,32 +239,21 @@ int Jet::partonFlavour() const { return jetFlavourInfo_.getPartonFlavour(); }
 /// return the hadron-based flavour of the jet
 int Jet::hadronFlavour() const { return jetFlavourInfo_.getHadronFlavour(); }
 
-/// return the GHS algorithm-derived flavour of the jet, using bitwise encoding (0 as N/A)
-int Jet::ghsFlavour() const {
-  return jetFlavourInfo_.haveAlgoFlav(reco::FlavAlgo::kGHS) ? jetFlavourInfo_.getAlgoFlavCode(reco::FlavAlgo::kGHS) : 0;
-}
-
-int Jet::ghsFullFlavour() const {
-  return jetFlavourInfo_.haveAlgoFlav(reco::FlavAlgo::kGHSFull)
-             ? jetFlavourInfo_.getAlgoFlavCode(reco::FlavAlgo::kGHSFull)
-             : 0;
-}
-
-/// return the GHS algorithm-derived flavour of the jet, using full std::vector<int>
+/// return the a flavour algorithm-derived flavour of the jet, using full std::vector<int>
 const std::vector<int>& Jet::algoFlav(const reco::FlavAlgo& algo) const { return jetFlavourInfo_.getAlgoFlav(algo); }
 
 const std::vector<int>& Jet::algoFlav(const uint8_t& algoNum) const {
   return algoFlav(static_cast<const reco::FlavAlgo>(algoNum));
 }
 
-/// return the GHS algorithm-derived flavour of the jet, using bitwise encoding (0 as N/A)
+/// return the a flavour algorithm-derived flavour of the jet, using bitwise encoding (0 as N/A)
 uint Jet::algoFlavCode(const reco::FlavAlgo& algo) const { return jetFlavourInfo_.getAlgoFlavCode(algo); }
 
 uint Jet::algoFlavCode(const uint8_t& algoNum) const {
   return algoFlavCode(static_cast<const reco::FlavAlgo>(algoNum));
 }
 
-/// return the heaviest GHS flavour component of the jet.
+/// return the heaviest flavour component of the jet.
 int8_t Jet::algoFlavLeading(const reco::FlavAlgo& algo) const { return jetFlavourInfo_.getAlgoFlavLeading(algo); }
 
 int8_t Jet::algoFlavLeading(const uint8_t& algoNum) const {
