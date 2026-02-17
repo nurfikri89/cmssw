@@ -39,7 +39,7 @@ genJetFlavourAssociation = cms.EDProducer("JetFlavourClustering",
     jets = genJetTable.src,
     bHadrons = cms.InputTag("patJetPartonsNano","bHadrons"),
     cHadrons = cms.InputTag("patJetPartonsNano","cHadrons"),
-    partons = cms.InputTag("patJetPartonsNano","physicsPartons"),
+    partons = cms.InputTag("patJetPartonsNano","algorithmicPartons"),
     finalPartons = cms.InputTag("patJetPartonsNano","algorithmicPartons"),
     leptons = cms.InputTag("patJetPartonsNano","leptons"),
     jetAlgorithm = cms.string("AntiKt"),
@@ -71,6 +71,13 @@ genJetFlavourAssociation = cms.EDProducer("JetFlavourClustering",
         #   - any_flav: Any absolute flavour
         flavSummationScheme = cms.string("net_flav")
     ),
+    ifnAlgorithm = cms.PSet(
+        # Enable/disable the IFN algorithm
+        enabled = cms.bool(True),
+        alpha = cms.double(2.0),  # IFN alpha parameter (default: 1.0)
+        omega = cms.double(1.0),  # IFN omega parameter (default: 2.0)
+        flavSummationScheme = cms.string("net_flav")  # Flavour summation scheme for IFN (same options as GHS)
+    )
 )
 
 genJetFlavourTable = cms.EDProducer("GenJetFlavourTableProducer",
@@ -78,7 +85,9 @@ genJetFlavourTable = cms.EDProducer("GenJetFlavourTableProducer",
     src = genJetTable.src,
     cut = genJetTable.cut,
     deltaR = cms.double(0.1),
-    jetFlavourInfos = cms.InputTag("slimmedGenJetsFlavourInfos"),
+    flavourAlgorithms = cms.vstring("GHS", "IFN"),  # List of flavour algorithms to include in the table
+    # jetFlavourInfos = cms.InputTag("slimmedGenJetsFlavourInfos"),
+    jetFlavourInfos = cms.InputTag("genJetFlavourAssociation"),
 )
 
 genJetAK8Table = simpleGenJetFlatTableProducer.clone(
@@ -95,13 +104,26 @@ genJetAK8FlavourAssociation = cms.EDProducer("JetFlavourClustering",
     jets = genJetAK8Table.src,
     bHadrons = cms.InputTag("patJetPartonsNano","bHadrons"),
     cHadrons = cms.InputTag("patJetPartonsNano","cHadrons"),
-    partons = cms.InputTag("patJetPartonsNano","physicsPartons"),
+    partons = cms.InputTag("patJetPartonsNano","algorithmicPartons"),
     finalPartons = cms.InputTag("patJetPartonsNano","algorithmicPartons"),
     leptons = cms.InputTag("patJetPartonsNano","leptons"),
     jetAlgorithm = cms.string("AntiKt"),
     rParam = cms.double(0.8),
     ghostRescaling = cms.double(1e-18),
-    hadronFlavourHasPriority = cms.bool(False)
+    hadronFlavourHasPriority = cms.bool(False),
+    ifnAlgorithm = cms.PSet(
+        enabled = cms.bool(True),
+        alpha = cms.double(2.0),
+        omega = cms.double(1.0),
+        flavSummationScheme = cms.string("net_flav")
+    ),
+    ghsAlgorithm = cms.PSet(
+        enabled = cms.bool(True),
+        alpha = cms.double(1.0),
+        omega = cms.double(2.0),
+        ptMin = cms.double(5.0),
+        flavSummationScheme = cms.string("net_flav")
+    )
 )
 
 genJetAK8FlavourTable = cms.EDProducer("GenJetFlavourTableProducer",
@@ -110,6 +132,7 @@ genJetAK8FlavourTable = cms.EDProducer("GenJetFlavourTableProducer",
     cut = genJetAK8Table.cut,
     deltaR = cms.double(0.1),
     jetFlavourInfos = cms.InputTag("genJetAK8FlavourAssociation"),
+    flavourAlgorithms = cms.vstring("GHS", "IFN")
 )
 fatJetMCTable = simplePATJetFlatTableProducer.clone(
     src = _fatJetTable.src,
@@ -118,11 +141,6 @@ fatJetMCTable = simplePATJetFlatTableProducer.clone(
     extension = cms.bool(True),
     variables = cms.PSet(
         hadronFlavour = Var("hadronFlavour()", "uint8", doc="flavour from hadron ghost clustering"),
-        # reco::FlavAlgo::kGHS is not parsed properly. Manual value 1 is used instead.
-        ghsFlavCode = Var("?haveAlgoFlav(1)?algoFlavCode(1):0", "uint", doc="GHS flavour code of matched gen jet"),
-        # ghsFlavLeading = Var("?haveAlgoFlav(1)?algoFlavLeading(1):0", "int", doc="Heaviest parton flavour in the jet flavour from GHS"),
-        # ghsFullFlavCode = Var("?haveAlgoFlav(3)?algoFlavCode(3):0", "uint", doc="GHS full flavour code of matched gen jet"),
-        # ghsFullFlavLeading = Var("?haveAlgoFlav(3)?algoFlavLeading(3):0", "int", doc="Heaviest parton flavour in the jet full flavour from GHS"),
         # cut should follow genJetAK8Table.cut
         genJetAK8Idx = Var("?genJetFwdRef().backRef().isNonnull() && genJetFwdRef().backRef().pt() > 100.?genJetFwdRef().backRef().key():-1", "int16", doc="index of matched gen AK8 jet"),
     )
@@ -154,7 +172,12 @@ genParticlesForJetsCharged = cms.EDFilter("CandPtrSelector",
     cut = cms.string("charge != 0 && pt > 0.3 && status == 1 && abs(pdgId) != 12 && abs(pdgId) != 14 && abs(pdgId) != 16")
 )
 
-ak4GenJetsChargedOnly = ak4GenJets.clone(src = cms.InputTag("genParticlesForJetsCharged"), rParam = cms.double(0.4), jetAlgorithm=cms.string("AntiKt"), doAreaFastjet = False, jetPtMin=1)
+ak4GenJetsChargedOnly = ak4GenJets.clone(
+    src = cms.InputTag("genParticlesForJetsCharged"),
+    rParam = cms.double(0.4),
+    jetAlgorithm=cms.string("AntiKt"),
+    doAreaFastjet = False,
+    jetPtMin=1)
 
 
 trackGenJetAK4Table = genJetTable.clone(
@@ -171,6 +194,7 @@ trackGenJetAK4Table.variables.phi.precision = 8
 
 jetMCTaskak4 = cms.Task(
     jetMCTable,
+    genJetFlavourAssociation,
     genJetTable,
     patJetPartonsNano,
     genJetFlavourTable,
@@ -186,4 +210,4 @@ jetMCTaskak8 = cms.Task(
     genSubJetAK8Table,
     subjetMCTable
 )
-jetMCTask = jetMCTaskak4.copy()
+jetMCTask = jetMCTaskak4.copyAndAdd(jetMCTaskak8)
