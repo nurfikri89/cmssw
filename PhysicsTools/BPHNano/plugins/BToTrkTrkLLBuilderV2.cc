@@ -97,12 +97,12 @@ void BToTrkTrkLLBuilderV2::produce(edm::StreamID, edm::Event &evt, edm::EventSet
   edm::Handle<reco::BeamSpot> beamspot;
   evt.getByToken(beamspot_, beamspot);
 
+  edm::Handle<pat::PackedCandidateCollection> packedPFCandidates;
+  evt.getByToken(packedPFCandidatesToken_, packedPFCandidates);
+
   edm::ESHandle<MagneticField> fieldHandle;
   const auto &bField = iSetup.getData(bFieldToken_);
   AnalyticalImpactPointExtrapolator extrapolator(&bField);
-
-  edm::Handle<pat::PackedCandidateCollection> packedPFCandidates;
-  evt.getByToken(packedPFCandidatesToken_, packedPFCandidates);
 
   // output
   std::unique_ptr<pat::CompositeCandidateCollection> ret_val(new pat::CompositeCandidateCollection());

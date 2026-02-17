@@ -2,7 +2,7 @@ import FWCore.ParameterSet.Config as cms
 from PhysicsTools.BPHNano.common_cff import *
 from PhysicsTools.NanoAOD.simplePATMuonFlatTableProducer_cfi import simplePATMuonFlatTableProducer
 
-def nanoAOD_customize_KshortLL_LambdaLL_PhiKK(process):
+def nanoAOD_customize_KshortLL_LambdaLL(process):
     """
     # Takes slimmedMuons, apply basic preselection.
     process.muonBPH = cms.EDProducer("MuonNoTriggerSelector",
@@ -196,6 +196,18 @@ def nanoAOD_customize_KshortLL_LambdaLL_PhiKK(process):
     )
     """
 
+    process.tracksBPH = cms.EDProducer("BPHTrackMerger",
+        beamSpot        = cms.InputTag("offlineBeamSpot"),
+        dileptons       = cms.InputTag("MuMu:SelectedDiLeptons"),
+        tracks          = cms.InputTag("packedPFCandidates"),
+        lostTracks      = cms.InputTag("lostTracks"),
+        trackSelection  = cms.string("pt>0.7 && abs(eta)<3.0"),  # We need all tracks for tagging, no cuts here for now
+        muons           = cms.InputTag("slimmedMuons"),
+        electrons       = cms.InputTag("slimmedElectrons"),
+        pvSrc           = cms.InputTag("offlineSlimmedPrimaryVertices"),
+        maxDzDilep      = cms.double(1.0),
+        dcaSig          = cms.double(-100000),
+    )
 
     ########################### Selections ###########################
 
@@ -312,7 +324,7 @@ def nanoAOD_customize_KshortLL_LambdaLL_PhiKK(process):
         process.KshortToPiPi,
         process.LambdaToProtonPi,
         process.KshortToPiPiTable,
-        process.LambdaToProtonPiTable
+        process.LambdaToProtonPiTable,
     )
     if hasattr(process,"NANOEDMAODoutput") or hasattr(process,"NANOAODoutput"):
         process.nanoTableTaskCommon.add(process.bphNanoSimpleTask)
@@ -510,18 +522,7 @@ def nanoAOD_customize_BToKMuMu_BToTrkTrkMuMu(process):
         )
     )
 
-    process.tracksBPH = cms.EDProducer("BPHTrackMerger",
-        beamSpot        = cms.InputTag("offlineBeamSpot"),
-        dileptons       = cms.InputTag("MuMu:SelectedDiLeptons"),
-        tracks          = cms.InputTag("packedPFCandidates"),
-        lostTracks      = cms.InputTag("lostTracks"),
-        trackSelection  = cms.string("pt>0.7 && abs(eta)<3.0"),  # We need all tracks for tagging, no cuts here for now
-        muons           = cms.InputTag("slimmedMuons"),
-        electrons       = cms.InputTag("slimmedElectrons"),
-        pvSrc           = cms.InputTag("offlineSlimmedPrimaryVertices"),
-        maxDzDilep      = cms.double(1.0),
-        dcaSig          = cms.double(-100000),
-    )
+
 
     process.trackBPHTable = cms.EDProducer("SimpleCompositeCandidateFlatTableProducer",
         src  = cms.InputTag("tracksBPH:SelectedTracks"),
@@ -781,7 +782,7 @@ def nanoAOD_customize_BToKMuMu_BToTrkTrkMuMu(process):
             fit_trk2_pt  = Var("userFloat('fitted_trk2_pt')", float, doc = "post-fit subleading track pT", precision=10),
             fit_trk2_eta = Var("userFloat('fitted_trk2_eta')", float, doc = "post-fit subleading track eta", precision=10),
             fit_trk2_phi = Var("userFloat('fitted_trk2_phi')", float, doc = "post-fit subleading track phi", precision=10),
-            # isolation 
+            # isolation
             l1_iso04   = Var("userFloat('l1_iso04')", float, doc = "leading mu isolation DR<0.4", precision=10),
             l2_iso04   = Var("userFloat('l2_iso04')", float, doc = "subleading mu isolation DR<0.4", precision=10),
             trk1_iso04 = Var("userFloat('trk1_iso04')", float, doc = "leading track isolation DR<0.4", precision=10),
@@ -802,6 +803,126 @@ def nanoAOD_customize_BToKMuMu_BToTrkTrkMuMu(process):
             constraint_massErr_piK  = Var("userFloat('constraint_massErr_piK')", float, doc = "mass uncertainty for the piK mass hypothesis of the dimuon mass constraint", precision=10),
             constraint_mll  = Var("userFloat('constraint_mll')", float, doc = "dimuon mass after the dimuon mass constraint", precision=10),
         )
+    )
+
+    process.XiToLambdaPion = cms.EDProducer('V0TrkDisplacedBuilder',
+        V0s_ttracks = cms.InputTag('LambdaToProtonPi','SelectedV0TransientCollection'),
+        V0s = cms.InputTag('LambdaToProtonPi','SelectedV0Collection'),
+        packedPFCandidates = cms.InputTag("packedPFCandidates"),
+        V0sOriginal = cms.InputTag('slimmedLambdaVertices'),
+        beamSpot = cms.InputTag("offlineBeamSpot"),
+        offlinePrimaryVertexSrc = cms.InputTag('offlineSlimmedPrimaryVertices'),
+        isXi = cms.bool(True),
+        preVtxSelection = cms.string(
+            'userFloat("V0_trk_min_dr")>0.03 && '
+            'abs(charge)==1 && '
+            '1.2 < mass && mass < 1.5 &&'
+            'userFloat("V0trk_dr")<1.6'
+        ),
+        postVtxSelection = cms.string(
+            'userFloat("sv_prob") > 1.e-3 '
+            ' && userFloat("fitted_cos_theta_2D") >= 0.90 && '
+           ' (1.240 < userFloat("fitted_mass") && userFloat("fitted_mass") < 1.450 )'
+        ),
+        trkSelection  = cms.string("pt>0.7 && abs(eta)<3.0"),
+    )
+
+    process.XiToLambdaPionTable = cms.EDProducer(
+        'SimpleCompositeCandidateFlatTableProducer',
+        src       = cms.InputTag("XiToLambdaPion","SelectedV0TrkDisplaced"),
+        cut       = cms.string(""),
+        name      = cms.string("XiToLambdaPion"),
+        doc       = cms.string("XiToLambdaPion Variables"),
+        singleton = cms.bool(False),
+        extension = cms.bool(False),
+        variables = cms.PSet(
+            # pre-fit quantities
+            CandVars,
+            V0_idx            = Var("userInt('V0_idx')", int, doc = "V0 index in the LambdaToProtonPi collection"),
+            V0_pt             = Var("userFloat('V0_pt')",float, doc = "V0 track pt"),
+            V0_eta            = Var("userFloat('V0_eta')",float, doc = "V0 track eta"),
+            V0_phi            = Var("userFloat('V0_phi')",float, doc = "V0 track phi"),
+            V0_p              = Var("userFloat('V0_mass')",float, doc = "V0 mass"),
+            V0_prefit_mass    = Var("userFloat('V0_prefit_mass')", float, doc = "V0 prefit mass"),
+            V0_fittedmass     = Var("userFloat('V0_fittedmass')", float, doc = "V0 fittedmass"),
+            V0_trk1_pt        = Var("userFloat('V0_trk1_pt')",  float, doc = "leading V0 track pt"),
+            V0_trk1_eta       = Var("userFloat('V0_trk1_eta')", float, doc = "leading V0 track eta"),
+            V0_trk1_phi       = Var("userFloat('V0_trk1_phi')", float, doc = "leading V0 track phi"),
+            V0_trk1_p         = Var("userFloat('V0_trk1_p')",   float, doc = "leading V0 track momentum"),
+            V0_trk1_keyPacked = Var("userInt('V0_trk1_keyPacked')", int, doc = "leading V0 track packed key"),
+            V0_trk2_pt        = Var("userFloat('V0_trk2_pt')",  float, doc = "subleading V0 track pt"),
+            V0_trk2_eta       = Var("userFloat('V0_trk2_eta')", float, doc = "subleading V0 track eta"),
+            V0_trk2_phi       = Var("userFloat('V0_trk2_phi')", float, doc = "subleading V0 track phi"),
+            V0_trk2_p         = Var("userFloat('V0_trk2_p')",   float, doc = "subleading V0 track momentum"),
+            V0_trk2_keyPacked = Var("userInt('V0_trk2_keyPacked')", int, doc = "leading V0 track packed key"),
+            trk_keyPacked           = Var("userInt('trk_keyPacked')", int, doc = "track index to the BPH track collection"),
+            trk_pt            = Var("userFloat('prefit_trk_pt')",  float, doc = " track pt"),
+            trk_eta           = Var("userFloat('prefit_trk_eta')", float, doc = " track eta"),
+            trk_phi           = Var("userFloat('prefit_trk_phi')", float, doc = " track phi"),
+            trk_mass          = Var("userFloat('prefit_trk_mass')", float, doc = "track mass"),
+            V0_trk_min_dr     = Var("userFloat('V0_trk_min_dr')", float, doc = "min DR of the track with V0", precision=10),
+            V0_trk_max_dr     = Var("userFloat('V0_trk_max_dr')", float, doc = "max DR of the track with V0", precision=10),
+            fitted_trk_pt     = Var("userFloat('fitted_trk_pt')",   float, doc = "fitted_trk_pt"),
+            fitted_trk_eta    = Var("userFloat('fitted_trk_eta')",  float, doc = "fitted_trk_eta"),
+            fitted_trk_phi    = Var("userFloat('fitted_trk_phi')",  float, doc = "fitted_trk_phi"),
+            fitted_trk_mass   = Var("userFloat('fitted_trk_mass')", float, doc = "fitted_trk_mass"),
+            fitted_V0_pt      = Var("userFloat('fitted_V0_pt')",    float, doc = "fitted_V0_pt"),
+            fitted_V0_eta     = Var("userFloat('fitted_V0_eta')",   float, doc = "fitted_V0_eta"),
+            fitted_V0_phi     = Var("userFloat('fitted_V0_phi')",   float, doc = "fitted_V0_phi"),
+            fitted_V0_mass    = Var("userFloat('fitted_V0_mass')",  float, doc = "fitted_V0_mass"),
+            fitted_mass       = Var("userFloat('fitted_mass')",     float, doc = "fitted_mass"),
+            fitted_massErr    = Var("userFloat('fitted_massErr')",  float, doc = "fitted_massErr"),
+            # vtx info
+            chi2      = Var("userFloat('sv_chi2')", float, doc = "vertex chi^2 of the lambda+track candidate", precision=10),
+            ndof      = Var("userFloat('sv_ndof')", float, doc = "vertex ndof of the lambda+track candidate", precision=10),
+            svprob    = Var("userFloat('sv_prob')", float, doc = "vertex probability of the lambda+track candidate", precision=10),
+            fit_cos2D = Var("userFloat('fitted_cos_theta_2D')", float, doc = "cos 2D of fitted vertex wrt beamspot", precision=10),
+            l_xy      = Var("userFloat('l_xy')", float, doc = "post-fit vertex displacement on transverse plane wrt beamspot", precision=10),
+            l_xy_unc  = Var("userFloat('l_xy_unc')", float, doc = "post-fit uncertainty of the vertex displacement on transverse plane wrt beamspot", precision=10),
+            # vertex
+            vtx_x   = Var("userFloat('vtx_x')", float, doc = "position x of fitted vertex", precision=10),
+            vtx_y   = Var("userFloat('vtx_y')", float, doc = "position y of fitted vertex", precision=10),
+            vtx_z   = Var("userFloat('vtx_z')", float, doc = "position z of fitted vertex", precision=10),
+            #
+            dca       = Var("userFloat('dca')", float, doc = "dca",     precision=15),
+            dca_err   = Var("userFloat('dcaErr')", float, doc = "dca_err", precision=15),
+            V0_dz  = Var("userFloat('V0_dz')", float, doc = "V0_dz", precision=15),
+            V0_x   = Var("userFloat('V0_x')", float,  doc = "V0_x",  precision=15),
+            V0_y   = Var("userFloat('V0_y')", float,  doc = "V0_y",  precision=15),
+            V0_z   = Var("userFloat('V0_z')", float,  doc = "V0_z",  precision=15),
+            svip2d      = Var("userFloat('svip2d')", float,      doc = "svip2d",  precision=15),
+            svip2d_err  = Var("userFloat('svip2d_err')", float,  doc = "svip2d_err",  precision=15),
+            svip3d      = Var("userFloat('svip3d')", float,      doc = "svip3d",  precision=15),
+            svip3d_err  = Var("userFloat('svip3d_err')", float,  doc = "svip3d_err",  precision=15),
+        )
+    )
+
+    process.OmegaToLambdaKaon = cms.EDProducer('V0TrkDisplacedBuilder',
+        V0s_ttracks = cms.InputTag('LambdaToProtonPi','SelectedV0TransientCollection'),
+        V0s = cms.InputTag('LambdaToProtonPi','SelectedV0Collection'),
+        packedPFCandidates = cms.InputTag("packedPFCandidates"),
+        V0sOriginal = cms.InputTag('slimmedLambdaVertices'),
+        beamSpot = cms.InputTag("offlineBeamSpot"),
+        offlinePrimaryVertexSrc = cms.InputTag('offlineSlimmedPrimaryVertices'),
+        isXi = cms.bool(False),
+        preVtxSelection = cms.string(
+            'userFloat("V0_trk_min_dr")>0.03 && '
+            'abs(charge)==1 && '
+            '1.5 < mass && mass < 1.8 && '
+            'userFloat("V0trk_dr")<1.6'
+        ),
+        postVtxSelection = cms.string(
+            'userFloat("sv_prob") > 1.e-3 '
+            ' && userFloat("fitted_cos_theta_2D") >= 0.90 && '
+           ' (1.5 < userFloat("fitted_mass") && userFloat("fitted_mass") < 1.8 )'
+        ),
+        trkSelection  = cms.string("pt>0.7 && abs(eta)<3.0"),
+    )
+    process.OmegaToLambdaKaonTable = process.XiToLambdaPionTable.clone(
+        src       = cms.InputTag("OmegaToLambdaKaon","SelectedV0TrkDisplaced"),
+        cut       = cms.string(""),
+        name      = cms.string("OmegaToLambdaKaon"),
+        doc       = cms.string("OmegaToLambdaKaon Variables"),
     )
 
     process.pVertexTable = cms.EDProducer("PVertexBPHTable",
@@ -834,6 +955,18 @@ def nanoAOD_customize_BToKMuMu_BToTrkTrkMuMu(process):
         maxDeltaR = cms.double(0.2)
     )
 
+    process.XiToLambdaPionTrackIsoCands = cms.EDProducer("PackedPFCandIsoProducer",
+        packedPFCandidatesSelected = cms.InputTag("XiToLambdaPion","PackedPFCandidatePtrCollection"),
+        packedPFCandidates = cms.InputTag("packedPFCandidates"),
+        maxDeltaR = cms.double(0.2)
+    )
+
+    process.OmegaToLambdaKaonTrackIsoCands = cms.EDProducer("PackedPFCandIsoProducer",
+        packedPFCandidatesSelected = cms.InputTag("OmegaToLambdaKaon","PackedPFCandidatePtrCollection"),
+        packedPFCandidates = cms.InputTag("packedPFCandidates"),
+        maxDeltaR = cms.double(0.2)
+    )
+
     process.pfChargedHadronSelectedIsoCands.maxDeltaR=0.2
 
     #
@@ -850,6 +983,10 @@ def nanoAOD_customize_BToKMuMu_BToTrkTrkMuMu(process):
         cms.InputTag("LambdaToProtonPiTrackIsoCands"),
         cms.InputTag("pfChargedHadronSelected"),
         cms.InputTag("pfChargedHadronSelectedIsoCands"),
+        cms.InputTag("XiToLambdaPion","PackedPFCandidatePtrCollection"),
+        cms.InputTag("XiToLambdaPionTrackIsoCands"),
+        cms.InputTag("OmegaToLambdaKaon","PackedPFCandidatePtrCollection"),
+        cms.InputTag("OmegaToLambdaKaonTrackIsoCands"),
     )
 
     process.bphNanoBDecayTask = cms.Task(
@@ -867,11 +1004,19 @@ def nanoAOD_customize_BToKMuMu_BToTrkTrkMuMu(process):
         process.BToTrkTrkMuMuTable,
         process.BToKmumuTrackIsoCands,
         process.BToTrkTrkMuMuTrackIsoCands,
+        #
+        process.XiToLambdaPion,
+        process.XiToLambdaPionTable,
+        process.OmegaToLambdaKaon,
+        process.OmegaToLambdaKaonTable,
+        #
         process.pVertexTable,
     )
 
     process.bphNanoSimpleTask.add(process.KShortToPiPiTrackIsoCands)
     process.bphNanoSimpleTask.add(process.LambdaToProtonPiTrackIsoCands)
+    process.bphNanoSimpleTask.add(process.XiToLambdaPionTrackIsoCands)
+    process.bphNanoSimpleTask.add(process.OmegaToLambdaKaonTrackIsoCands)
 
     if hasattr(process,"NANOEDMAODoutput") or hasattr(process,"NANOAODoutput"):
         process.nanoTableTaskCommon.add(process.bphNanoBDecayTask)

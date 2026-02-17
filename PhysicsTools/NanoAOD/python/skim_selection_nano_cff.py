@@ -1,9 +1,26 @@
 import FWCore.ParameterSet.Config as cms
 
+def SetupHigherAK4CHSJetPtCutInNano(process,cutvalue=20):
+  if hasattr(process,"finalJetsCHS"):
+    process.finalJetsCHS.cut = f"pt >= {cutvalue}"
+
+  if hasattr(process,"corrT1METJetTable"):
+    process.corrT1METJetTable.cut = f"pt>8 && pt<{cutvalue} && abs(eta)<9.9"
+
+  return process
+
+def SetupHigherAK4PuppiJetPtCutInNano(process,cutvalue=10):
+  process.finalJetsPuppi.cut = f"pt >= {cutvalue}"
+  process.corrT1METJetPuppiTable.cut = f"pt>8 && pt<{cutvalue} && abs(eta)<9.9"
+
+  return process
+
+
 def SetupSkimForMC_AlwaysRunWeightsTable(process):
   process.genWeightsTableSequence = cms.Sequence(process.genWeightsTable)
   process.genWeightsTablePath = cms.Path(process.genWeightsTableSequence)
   process.schedule.insert(0, process.genWeightsTablePath)
+
   return process
 
 def SetupSkim_HLTDimuon(process):
@@ -25,7 +42,6 @@ def SetupSkim_HLTDimuon(process):
     process = SetupSkimForMC_AlwaysRunWeightsTable(process)
 
   return process
-
 
 def SetupSkim_HLTDielectron(process):
   import HLTrigger.HLTfilters.hltHighLevel_cfi as hlt
@@ -122,6 +138,7 @@ def SetupSkim_HLTJet(process):
     "HLT_CaloJet500_NoJetID_v*",
     "HLT_PFHT1050_v*",
   )
+
   process.HLTJetFilter.throw = cms.bool( False )
   process.skimHLTJetSequence = cms.Sequence(process.HLTJetFilter)
   process.SKIMHLTJet = cms.Path(process.skimHLTJetSequence)
@@ -184,3 +201,6 @@ def SetupSkim_HLTSinglePhoton(process):
     process = SetupSkimForMC_AlwaysRunWeightsTable(process)
 
   return process
+
+
+

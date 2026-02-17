@@ -53,9 +53,10 @@ public:
         v0s_{consumes<V0Collection>(cfg.getParameter<edm::InputTag>("V0s"))},
         beamspot_{consumes<reco::BeamSpot>(cfg.getParameter<edm::InputTag>("beamSpot"))},
         packedPFCandidatesToken_{consumes<pat::PackedCandidateCollection>(cfg.getParameter<edm::InputTag>("packedPFCandidates"))},
-        isLambda_{cfg.getParameter<bool>("isLambda")} {
+        isLambda_{cfg.getParameter<bool>("isLambda"),} {
     produces<pat::CompositeCandidateCollection>("SelectedV0Collection");
     produces<TransientTrackCollection>("SelectedV0TransientCollection");
+    // produces<TransientTrackCollection>("SelectedV0DaugthersTracksTransientCollection");
     produces<PackedCandidatePtrCollection>("PackedPFCandidatePtrCollection");
   }
 
@@ -75,22 +76,29 @@ private:
 };
 
 void V0ReBuilderV2::produce(edm::StreamID, edm::Event &evt, edm::EventSetup const &iSetup) const {
-  // input
+
   auto const theB = &iSetup.getData(theB_);
+
+  // input
   edm::Handle<V0Collection> V0s;
   evt.getByToken(v0s_, V0s);
   edm::Handle<reco::BeamSpot> beamspot;
   evt.getByToken(beamspot_, beamspot);
+
   edm::Handle<pat::PackedCandidateCollection> packedPFCandidates;
   evt.getByToken(packedPFCandidatesToken_, packedPFCandidates);
 
   // output
   std::unique_ptr<pat::CompositeCandidateCollection> ret_val(new pat::CompositeCandidateCollection());
   std::unique_ptr<TransientTrackCollection> trans_out(new TransientTrackCollection);
+  // std::unique_ptr<TransientTrackCollection> trans_v0Daugthers_out(new TransientTrackCollection);
 
   std::unique_ptr<PackedCandidatePtrCollection> ptr_out(new PackedCandidatePtrCollection);
 
   for (reco::VertexCompositePtrCandidateCollection::const_iterator v0 = V0s->begin(); v0 != V0s->end(); v0++) {
+
+    std::size_t index = std::distance(V0s->cbegin(), v0);
+
     // selection on V0s
     if (v0->numberOfDaughters() != 2)
       continue;
@@ -123,23 +131,25 @@ void V0ReBuilderV2::produce(edm::StreamID, edm::Event &evt, edm::EventSetup cons
     // auto trk1_ptr = v0->daughterPtr(0);
     // auto trk2_ptr = v0->daughterPtr(1);
 
-    int   prefit_trk1_key = -1;
+    int   prefit_trk1_keyPacked = -1;
     float prefit_trk1_pt = -1.f;
     float prefit_trk1_p = -1.f;
     float prefit_trk1_eta = -9.f;
     float prefit_trk1_phi = -9.f;
+    int   prefit_trk1_charge = 0;
 
-    int   prefit_trk2_key = -1;
+    int   prefit_trk2_keyPacked = -1;
     float prefit_trk2_pt = -1.f;
     float prefit_trk2_p = -1.f;
     float prefit_trk2_eta = -9.f;
     float prefit_trk2_phi = -9.f;
+    int   prefit_trk2_charge = 0;
 
     if (v0daughter1.p() > v0daughter2.p()) {
       v0daughter1_ttrack = theB->build(v0daughter1.bestTrack());
       v0daughter2_ttrack = theB->build(v0daughter2.bestTrack());
-      prefit_trk1_key = v0->daughterPtr(0).key();
-      prefit_trk2_key = v0->daughterPtr(1).key();
+      prefit_trk1_keyPacked = v0->daughterPtr(0).key();
+      prefit_trk2_keyPacked = v0->daughterPtr(1).key();
       prefit_trk1_pt  = v0daughter1.bestTrack()->pt();
       prefit_trk2_pt  = v0daughter2.bestTrack()->pt();
       prefit_trk1_p   = v0daughter1.bestTrack()->p();
@@ -148,12 +158,13 @@ void V0ReBuilderV2::produce(edm::StreamID, edm::Event &evt, edm::EventSetup cons
       prefit_trk2_eta = v0daughter2.bestTrack()->eta();
       prefit_trk1_phi = v0daughter1.bestTrack()->phi();
       prefit_trk2_phi = v0daughter2.bestTrack()->phi();
-
+      prefit_trk1_charge = v0daughter1.charge();
+      prefit_trk2_charge = v0daughter2.charge();
     } else {
       v0daughter1_ttrack = theB->build(v0daughter2.bestTrack());
       v0daughter2_ttrack = theB->build(v0daughter1.bestTrack());
-      prefit_trk1_key = v0->daughterPtr(1).key();
-      prefit_trk2_key = v0->daughterPtr(0).key();
+      prefit_trk1_keyPacked = v0->daughterPtr(1).key();
+      prefit_trk2_keyPacked = v0->daughterPtr(0).key();
       prefit_trk1_pt  = v0daughter2.bestTrack()->pt();
       prefit_trk2_pt  = v0daughter1.bestTrack()->pt();
       prefit_trk1_p   = v0daughter2.bestTrack()->p();
@@ -162,6 +173,8 @@ void V0ReBuilderV2::produce(edm::StreamID, edm::Event &evt, edm::EventSetup cons
       prefit_trk2_eta = v0daughter1.bestTrack()->eta();
       prefit_trk1_phi = v0daughter2.bestTrack()->phi();
       prefit_trk2_phi = v0daughter1.bestTrack()->phi();
+      prefit_trk1_charge = v0daughter2.charge();
+      prefit_trk2_charge = v0daughter1.charge();
     }
 
     float Track1_mass = (isLambda_) ? bph::PROT_MASS : bph::PI_MASS;
@@ -183,7 +196,12 @@ void V0ReBuilderV2::produce(edm::StreamID, edm::Event &evt, edm::EventSetup cons
     cand.setCharge(v0daughter1.charge() + v0daughter2.charge());
     cand.addUserFloat("sv_chi2", fitter.chi2());
     cand.addUserFloat("sv_prob", fitter.prob());
+
+    cand.addUserFloat("fitted_pt",  fit_p4.pt());
+    cand.addUserFloat("fitted_eta", fit_p4.eta());
+    cand.addUserFloat("fitted_phi", fit_p4.phi());
     cand.addUserFloat("fitted_mass", fitter.fitted_candidate().mass());
+
     cand.addUserFloat("massErr", sqrt(fitter.fitted_candidate().kinematicParametersError().matrix()(6, 6)));
     cand.addUserFloat("cos_theta_2D", bph::cos_theta_2D(fitter, *beamspot, cand.p4()));
     cand.addUserFloat("fitted_cos_theta_2D", bph::cos_theta_2D(fitter, *beamspot, fit_p4));
@@ -210,13 +228,13 @@ void V0ReBuilderV2::produce(edm::StreamID, edm::Event &evt, edm::EventSetup cons
     int trk1 = 0;
     int trk2 = 1;
 
-    int postfit_trk1_key = prefit_trk1_key;
-    int postfit_trk2_key = prefit_trk2_key;
+    int postfit_trk1_keyPacked = prefit_trk1_keyPacked;
+    int postfit_trk2_keyPacked = prefit_trk2_keyPacked;
     if (fitter.daughter_p4(0).pt() < fitter.daughter_p4(1).pt()) {
       trk1 = 1;
       trk2 = 0;
-      postfit_trk1_key = prefit_trk2_key;
-      postfit_trk2_key = prefit_trk1_key;
+      postfit_trk1_keyPacked = prefit_trk2_keyPacked;
+      postfit_trk2_keyPacked = prefit_trk1_keyPacked;
     }
     cand.addUserFloat("trk1_pt",  fitter.daughter_p4(trk1).pt());
     cand.addUserFloat("trk1_eta", fitter.daughter_p4(trk1).eta());
@@ -228,8 +246,14 @@ void V0ReBuilderV2::produce(edm::StreamID, edm::Event &evt, edm::EventSetup cons
     cand.addUserFloat("trk2_phi",fitter.daughter_p4(trk2).phi());
     cand.addUserFloat("trk2_p",  fitter.daughter_p4(trk2).P());
 
-    cand.addUserInt("trk1_keyPacked", postfit_trk1_key);
-    cand.addUserInt("trk2_keyPacked", postfit_trk2_key);
+    cand.addUserInt("trk1_charge", (int)v0daughter1_ttrack.charge());
+    cand.addUserInt("trk2_charge", (int)v0daughter2_ttrack.charge());
+
+    cand.addUserInt("trk1_orderingIdx", trk1);
+    cand.addUserInt("trk2_orderingIdx", trk2);
+
+    cand.addUserInt("trk1_keyPacked", postfit_trk1_keyPacked);
+    cand.addUserInt("trk2_keyPacked", postfit_trk2_keyPacked);
 
     cand.addUserFloat("prefit_trk1_pt",  prefit_trk1_pt);
     cand.addUserFloat("prefit_trk1_p",   prefit_trk1_p);
@@ -241,20 +265,31 @@ void V0ReBuilderV2::produce(edm::StreamID, edm::Event &evt, edm::EventSetup cons
     cand.addUserFloat("prefit_trk2_eta", prefit_trk2_eta);
     cand.addUserFloat("prefit_trk2_phi", prefit_trk2_phi);
 
-    cand.addUserInt("prefit_trk1_keyPacked", prefit_trk1_key);
-    cand.addUserInt("prefit_trk2_keyPacked", prefit_trk2_key);
+    cand.addUserInt("prefit_trk1_charge", prefit_trk1_charge);
+    cand.addUserInt("prefit_trk2_charge", prefit_trk2_charge);
 
-    ptr_out->push_back(PackedCandidatePtr(packedPFCandidates,prefit_trk1_key));
-    ptr_out->push_back(PackedCandidatePtr(packedPFCandidates,prefit_trk2_key));
+    cand.addUserInt("prefit_trk1_keyPacked", prefit_trk1_keyPacked);
+    cand.addUserInt("prefit_trk2_keyPacked", prefit_trk2_keyPacked);
+
+    cand.addUserInt("OriginalV0Idx", index);
+
+    ptr_out->push_back(PackedCandidatePtr(packedPFCandidates,prefit_trk1_keyPacked));
+    ptr_out->push_back(PackedCandidatePtr(packedPFCandidates,prefit_trk2_keyPacked));
 
     // save
     ret_val->push_back(cand);
     auto V0TT = fitter.fitted_candidate_ttrk();
     trans_out->emplace_back(V0TT);
-  }
 
+    // trans_v0Daugthers_out->emplace_back(v0daughter1_ttrack);
+    // cand.addUserInt("trk1_transientColl_Idx", trans_v0Daugthers_out->size()-1);
+
+    // trans_v0Daugthers_out->emplace_back(v0daughter2_ttrack);
+    // cand.addUserInt("trk2_transientColl_Idx", trans_v0Daugthers_out->size()-1);
+  }
   evt.put(std::move(ret_val),   "SelectedV0Collection");
   evt.put(std::move(trans_out), "SelectedV0TransientCollection");
+  // evt.put(std::move(trans_v0Daugthers_out), "SelectedV0DaugthersTracksTransientCollection");
   evt.put(std::move(ptr_out),   "PackedPFCandidatePtrCollection");
 }
 

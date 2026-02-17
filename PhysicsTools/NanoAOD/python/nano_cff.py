@@ -139,11 +139,11 @@ def nanoAOD_addBoostedTauIds(process, idsToRun=[]):
     return process
 
 def nanoAOD_addUTagToTaus(process, addUTagInfo=False, usePUPPIjets=False):
-    
+
     if addUTagInfo:
         originalTauName = process.finalTaus.src.value()
-        
-        if usePUPPIjets: # option to use PUPPI jets   
+
+        if usePUPPIjets: # option to use PUPPI jets
             jetCollection = "updatedJetsPuppi"
             TagName = "pfUnifiedParticleTransformerAK4JetTags"
             tag_prefix = "byUTagPUPPI"
@@ -251,19 +251,19 @@ def nanoAOD_customizeCommon(process):
     ).toModify(
         process, lambda p : nanoAOD_addTauIds(p, nanoAOD_tau_switch.idsToAdd.value())
     )
-    
+
     # Add Unified Tagger for CHS jets (PNet) for Run 2 era,
     # but don't add Unified Tagger for PUPPI jets (as different PUPPI tune
     # and base jet algorithm)
     (run2_nanoAOD_106Xv2).toModify(
         nanoAOD_tau_switch, addPNet = True
     )
-    # Add Unified Taggers for Run 3 pre 142X (pre v15) era (Unified taggers 
+    # Add Unified Taggers for Run 3 pre 142X (pre v15) era (Unified taggers
     # are already added to slimmedTaus in miniAOD for newer eras)
     run3_nanoAOD_pre142X.toModify(
         nanoAOD_tau_switch, addPNet = True, addUParTInfo = True
     )
-    
+
     # Add Unified Tagger For CHS Jets (PNet 2023)
     nanoAOD_addUTagToTaus(process,
                           addUTagInfo = nanoAOD_tau_switch.addPNet.value(),
@@ -294,8 +294,8 @@ def nanoAOD_customizeCommon(process):
     from PhysicsTools.NanoAOD.leptonTimeLifeInfo_common_cff import addTimeLifeInfoBase
     process = addTimeLifeInfoBase(process)
 
-    from PhysicsTools.NanoAOD.custom_bph_simplified_cff import nanoAOD_customize_KshortLL_LambdaLL_PhiKK
-    process = nanoAOD_customize_KshortLL_LambdaLL_PhiKK(process)
+    from PhysicsTools.NanoAOD.custom_bph_simplified_cff import nanoAOD_customize_KshortLL_LambdaLL
+    process = nanoAOD_customize_KshortLL_LambdaLL(process)
 
     return process
 
