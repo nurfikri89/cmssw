@@ -27,6 +27,7 @@ public:
         src_(consumes<std::vector<reco::GenJet> >(iConfig.getParameter<edm::InputTag>("src"))),
         cut_(iConfig.getParameter<std::string>("cut"), true),
         deltaR_(iConfig.getParameter<double>("deltaR")),
+        flavourAlgorithms_(iConfig.exists("flavourAlgorithms") ? iConfig.getParameter<std::vector<std::string>>("flavourAlgorithms") : std::vector<std::string>()),
         jetFlavourInfosToken_(
             consumes<reco::JetFlavourInfoMatchingCollection>(iConfig.getParameter<edm::InputTag>("jetFlavourInfos"))) {
     produces<nanoaod::FlatTable>();
@@ -41,6 +42,7 @@ public:
     desc.add<std::string>("name")->setComment("name of the genJet FlatTable we are extending with flavour information");
     desc.add<std::string>("cut")->setComment("cut on input genJet collection");
     desc.add<double>("deltaR")->setComment("deltaR to match genjets");
+    desc.addOptional<std::vector<std::string>>("flavourAlgorithms")->setComment("list of flavour algorithms to use");
     descriptions.add("genJetFlavourTable", desc);
   }
 
@@ -51,6 +53,7 @@ private:
   edm::EDGetTokenT<std::vector<reco::GenJet> > src_;
   const StringCutObjectSelector<reco::GenJet> cut_;
   const double deltaR_;
+  const std::vector<std::string> flavourAlgorithms_;
   edm::EDGetTokenT<reco::JetFlavourInfoMatchingCollection> jetFlavourInfosToken_;
 };
 
@@ -112,8 +115,11 @@ void GenJetFlavourTableProducer::produce(edm::Event& iEvent, const edm::EventSet
   tab->addColumn<uint8_t>("hadronFlavour", hadronFlavour, "flavour from hadron ghost clustering");
   tab->addColumn<uint8_t>("nBHadrons", nBHadrons, "number of b-hadrons");
   tab->addColumn<uint8_t>("nCHadrons", nCHadrons, "number of c-hadrons");
+
   for (size_t i = 0; i < reco::kAlgoFlavCount; ++i) {
     std::string algoName = reco::getAlgoName(static_cast<reco::FlavAlgo>(i));
+    if (std::find(flavourAlgorithms_.begin(), flavourAlgorithms_.end(), algoName) == flavourAlgorithms_.end())
+      continue;  // skip if this algorithm is not in the list of algorithms to include
     tab->addColumn<uint32_t>(algoName + "FlavCode", fjAlgoFlavs[i], "flavour code from " + algoName);
     tab->addColumn<int16_t>(algoName + "FlavLeading",
                             fjAlgoLeadingFlavs[i],
