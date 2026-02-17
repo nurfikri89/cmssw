@@ -240,9 +240,9 @@ int Jet::partonFlavour() const { return jetFlavourInfo_.getPartonFlavour(); }
 int Jet::hadronFlavour() const { return jetFlavourInfo_.getHadronFlavour(); }
 
 /// return the a flavour algorithm-derived flavour of the jet, using full std::vector<int>
-const std::vector<int>& Jet::algoFlav(const reco::FlavAlgo& algo) const { return jetFlavourInfo_.getAlgoFlav(algo); }
+const std::array<int, reco::kAlgoArrayLen>& Jet::algoFlav(const reco::FlavAlgo& algo) const { return jetFlavourInfo_.getAlgoFlav(algo); }
 
-const std::vector<int>& Jet::algoFlav(const uint8_t& algoNum) const {
+const std::array<int, reco::kAlgoArrayLen>& Jet::algoFlav(const uint8_t& algoNum) const {
   return algoFlav(static_cast<const reco::FlavAlgo>(algoNum));
 }
 
