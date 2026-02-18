@@ -39,12 +39,45 @@ genJetFlavourAssociation = cms.EDProducer("JetFlavourClustering",
     jets = genJetTable.src,
     bHadrons = cms.InputTag("patJetPartonsNano","bHadrons"),
     cHadrons = cms.InputTag("patJetPartonsNano","cHadrons"),
-    partons = cms.InputTag("patJetPartonsNano","physicsPartons"),
+    partons = cms.InputTag("patJetPartonsNano","algorithmicPartons"),
+    finalPartons = cms.InputTag("patJetPartonsNano","algorithmicPartons"),
     leptons = cms.InputTag("patJetPartonsNano","leptons"),
     jetAlgorithm = cms.string("AntiKt"),
     rParam = cms.double(0.4),
     ghostRescaling = cms.double(1e-18),
-    hadronFlavourHasPriority = cms.bool(False)
+    hadronFlavourHasPriority = cms.bool(False),
+    # ========================================================================
+    # GHS Algorithm Configuration (nested ParameterSet)
+    # ========================================================================
+    ghsAlgorithm = cms.PSet(
+        # Enable/disable the GHS algorithm
+        enabled = cms.bool(True),
+        
+        # GHS algorithm alpha parameter (default: 1.0)
+        # Controls the distance metric weight
+        alpha = cms.double(1.0),
+        
+        # GHS algorithm omega parameter (default: 2.0)
+        # Controls the angular distance metric
+        omega = cms.double(2.0),
+        
+        # Minimum pT threshold for GHS jets (default: very small)
+        ptMin = cms.double(0.0),
+        
+        # Flavour summation scheme
+        # Options: "net_flav", "mod2_flav", "any_flav"
+        #   - net_flav: Net flavour (algebraic sum)
+        #   - mod2_flav: Modulo 2 flavour (parity)
+        #   - any_flav: Any absolute flavour
+        flavSummationScheme = cms.string("net_flav")
+    ),
+    ifnAlgorithm = cms.PSet(
+        # Enable/disable the IFN algorithm
+        enabled = cms.bool(True),
+        alpha = cms.double(2.0),  # IFN alpha parameter (default: 1.0)
+        omega = cms.double(1.0),  # IFN omega parameter (default: 2.0)
+        flavSummationScheme = cms.string("net_flav")  # Flavour summation scheme for IFN (same options as GHS)
+    )
 )
 
 genJetFlavourTable = cms.EDProducer("GenJetFlavourTableProducer",
@@ -52,7 +85,9 @@ genJetFlavourTable = cms.EDProducer("GenJetFlavourTableProducer",
     src = genJetTable.src,
     cut = genJetTable.cut,
     deltaR = cms.double(0.1),
-    jetFlavourInfos = cms.InputTag("slimmedGenJetsFlavourInfos"),
+    flavourAlgorithms = cms.vstring("GHS", "IFN"),  # List of flavour algorithms to include in the table
+    # jetFlavourInfos = cms.InputTag("slimmedGenJetsFlavourInfos"),
+    jetFlavourInfos = cms.InputTag("genJetFlavourAssociation"),
 )
 
 genJetAK8Table = simpleGenJetFlatTableProducer.clone(
@@ -69,12 +104,26 @@ genJetAK8FlavourAssociation = cms.EDProducer("JetFlavourClustering",
     jets = genJetAK8Table.src,
     bHadrons = cms.InputTag("patJetPartonsNano","bHadrons"),
     cHadrons = cms.InputTag("patJetPartonsNano","cHadrons"),
-    partons = cms.InputTag("patJetPartonsNano","physicsPartons"),
+    partons = cms.InputTag("patJetPartonsNano","algorithmicPartons"),
+    finalPartons = cms.InputTag("patJetPartonsNano","algorithmicPartons"),
     leptons = cms.InputTag("patJetPartonsNano","leptons"),
     jetAlgorithm = cms.string("AntiKt"),
     rParam = cms.double(0.8),
     ghostRescaling = cms.double(1e-18),
-    hadronFlavourHasPriority = cms.bool(False)
+    hadronFlavourHasPriority = cms.bool(False),
+    ifnAlgorithm = cms.PSet(
+        enabled = cms.bool(True),
+        alpha = cms.double(2.0),
+        omega = cms.double(1.0),
+        flavSummationScheme = cms.string("net_flav")
+    ),
+    ghsAlgorithm = cms.PSet(
+        enabled = cms.bool(True),
+        alpha = cms.double(1.0),
+        omega = cms.double(2.0),
+        ptMin = cms.double(5.0),
+        flavSummationScheme = cms.string("net_flav")
+    )
 )
 
 genJetAK8FlavourTable = cms.EDProducer("GenJetFlavourTableProducer",
@@ -83,6 +132,7 @@ genJetAK8FlavourTable = cms.EDProducer("GenJetFlavourTableProducer",
     cut = genJetAK8Table.cut,
     deltaR = cms.double(0.1),
     jetFlavourInfos = cms.InputTag("genJetAK8FlavourAssociation"),
+    flavourAlgorithms = cms.vstring("GHS", "IFN")
 )
 fatJetMCTable = simplePATJetFlatTableProducer.clone(
     src = _fatJetTable.src,
@@ -122,7 +172,12 @@ genParticlesForJetsCharged = cms.EDFilter("CandPtrSelector",
     cut = cms.string("charge != 0 && pt > 0.3 && status == 1 && abs(pdgId) != 12 && abs(pdgId) != 14 && abs(pdgId) != 16")
 )
 
-ak4GenJetsChargedOnly = ak4GenJets.clone(src = cms.InputTag("genParticlesForJetsCharged"), rParam = cms.double(0.4), jetAlgorithm=cms.string("AntiKt"), doAreaFastjet = False, jetPtMin=1)
+ak4GenJetsChargedOnly = ak4GenJets.clone(
+    src = cms.InputTag("genParticlesForJetsCharged"),
+    rParam = cms.double(0.4),
+    jetAlgorithm=cms.string("AntiKt"),
+    doAreaFastjet = False,
+    jetPtMin=1)
 
 
 trackGenJetAK4Table = genJetTable.clone(
@@ -137,6 +192,22 @@ trackGenJetAK4Table.variables.pt.precision = 10
 trackGenJetAK4Table.variables.eta.precision = 8
 trackGenJetAK4Table.variables.phi.precision = 8
 
-jetMCTaskak4 = cms.Task(jetMCTable,genJetTable,patJetPartonsNano,genJetFlavourTable,genParticlesForJetsCharged,ak4GenJetsChargedOnly,trackGenJetAK4Table)
-jetMCTaskak8 = cms.Task(genJetAK8Table,genJetAK8FlavourAssociation,genJetAK8FlavourTable,fatJetMCTable,genSubJetAK8Table,subjetMCTable)
+jetMCTaskak4 = cms.Task(
+    jetMCTable,
+    genJetFlavourAssociation,
+    genJetTable,
+    patJetPartonsNano,
+    genJetFlavourTable,
+    genParticlesForJetsCharged,
+    ak4GenJetsChargedOnly,
+    trackGenJetAK4Table
+    )
+jetMCTaskak8 = cms.Task(
+    genJetAK8Table,
+    genJetAK8FlavourAssociation,
+    genJetAK8FlavourTable,
+    fatJetMCTable,
+    genSubJetAK8Table,
+    subjetMCTable
+)
 jetMCTask = jetMCTaskak4.copyAndAdd(jetMCTaskak8)

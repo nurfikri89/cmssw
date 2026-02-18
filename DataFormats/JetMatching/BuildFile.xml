@@ -2,6 +2,8 @@
 <use name="DataFormats/HepMCCandidate"/>
 <use name="DataFormats/JetReco"/>
 <use name="DataFormats/Math"/>
+<use name="fastjet"/>
+<use name="fastjet-contrib"/>
 <export>
   <lib name="1"/>
 </export>

@@ -1,6 +1,8 @@
 <use name="PhysicsTools/JetMCUtils"/>
 <use name="DataFormats/Common"/>
 <use name="DataFormats/HepMCCandidate"/>
+<use name="fastjet"/>
+<use name="fastjet-contrib"/>
 <export>
   <lib name="1"/>
 </export>

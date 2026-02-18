@@ -20,7 +20,6 @@
 
 #include "CommonTools/Utils/interface/StringCutObjectSelector.h"
 #include "CommonTools/Utils/interface/StringObjectFunction.h"
-
 class GenJetFlavourTableProducer : public edm::stream::EDProducer<> {
 public:
   explicit GenJetFlavourTableProducer(const edm::ParameterSet& iConfig)
@@ -28,6 +27,7 @@ public:
         src_(consumes<std::vector<reco::GenJet> >(iConfig.getParameter<edm::InputTag>("src"))),
         cut_(iConfig.getParameter<std::string>("cut"), true),
         deltaR_(iConfig.getParameter<double>("deltaR")),
+        flavourAlgorithms_(iConfig.exists("flavourAlgorithms") ? iConfig.getParameter<std::vector<std::string>>("flavourAlgorithms") : std::vector<std::string>()),
         jetFlavourInfosToken_(
             consumes<reco::JetFlavourInfoMatchingCollection>(iConfig.getParameter<edm::InputTag>("jetFlavourInfos"))) {
     produces<nanoaod::FlatTable>();
@@ -42,6 +42,7 @@ public:
     desc.add<std::string>("name")->setComment("name of the genJet FlatTable we are extending with flavour information");
     desc.add<std::string>("cut")->setComment("cut on input genJet collection");
     desc.add<double>("deltaR")->setComment("deltaR to match genjets");
+    desc.addOptional<std::vector<std::string>>("flavourAlgorithms")->setComment("list of flavour algorithms to use");
     descriptions.add("genJetFlavourTable", desc);
   }
 
@@ -52,6 +53,7 @@ private:
   edm::EDGetTokenT<std::vector<reco::GenJet> > src_;
   const StringCutObjectSelector<reco::GenJet> cut_;
   const double deltaR_;
+  const std::vector<std::string> flavourAlgorithms_;
   edm::EDGetTokenT<reco::JetFlavourInfoMatchingCollection> jetFlavourInfosToken_;
 };
 
@@ -65,6 +67,9 @@ void GenJetFlavourTableProducer::produce(edm::Event& iEvent, const edm::EventSet
   std::vector<uint8_t> hadronFlavour;
   std::vector<uint8_t> nBHadrons;
   std::vector<uint8_t> nCHadrons;
+  // fastjet::contrib flavour info - initialize vectors for each algorithm
+  std::vector<std::vector<uint32_t>> fjAlgoFlavs(reco::kAlgoFlavCount);
+  std::vector<std::vector<int16_t>> fjAlgoLeadingFlavs(reco::kAlgoFlavCount);
 
   for (const reco::GenJet& jet : jetsProd) {
     if (!cut_(jet))
@@ -77,6 +82,17 @@ void GenJetFlavourTableProducer::produce(edm::Event& iEvent, const edm::EventSet
         hadronFlavour.push_back(jetFlavourInfoMatching.second.getHadronFlavour());
         nBHadrons.push_back(jetFlavourInfoMatching.second.getbHadrons().size());
         nCHadrons.push_back(jetFlavourInfoMatching.second.getcHadrons().size());
+
+        // fastjet::contrib flavour info
+        for (size_t i = 0; i < reco::kAlgoFlavCount; ++i) {
+          if (jetFlavourInfoMatching.second.haveAlgoFlav(i)) {
+            fjAlgoFlavs[i].push_back(jetFlavourInfoMatching.second.getAlgoFlavCode(i));
+            fjAlgoLeadingFlavs[i].push_back(jetFlavourInfoMatching.second.getAlgoFlavLeading(i));
+          } else {
+            fjAlgoFlavs[i].push_back(0);
+            fjAlgoLeadingFlavs[i].push_back(0);
+          }
+        }
         matched = true;
         break;
       }
@@ -86,6 +102,11 @@ void GenJetFlavourTableProducer::produce(edm::Event& iEvent, const edm::EventSet
       hadronFlavour.push_back(0);
       nBHadrons.push_back(0);
       nCHadrons.push_back(0);
+      // fastjet::contrib flavour info
+      for (size_t i = 0; i < reco::kAlgoFlavCount; ++i) {
+        fjAlgoFlavs[i].push_back(0);
+        fjAlgoLeadingFlavs[i].push_back(0);
+      }
     }
   }
 
@@ -94,6 +115,16 @@ void GenJetFlavourTableProducer::produce(edm::Event& iEvent, const edm::EventSet
   tab->addColumn<uint8_t>("hadronFlavour", hadronFlavour, "flavour from hadron ghost clustering");
   tab->addColumn<uint8_t>("nBHadrons", nBHadrons, "number of b-hadrons");
   tab->addColumn<uint8_t>("nCHadrons", nCHadrons, "number of c-hadrons");
+
+  for (size_t i = 0; i < reco::kAlgoFlavCount; ++i) {
+    std::string algoName = reco::getAlgoName(static_cast<reco::FlavAlgo>(i));
+    if (std::find(flavourAlgorithms_.begin(), flavourAlgorithms_.end(), algoName) == flavourAlgorithms_.end())
+      continue;  // skip if this algorithm is not in the list of algorithms to include
+    tab->addColumn<uint32_t>(algoName + "FlavCode", fjAlgoFlavs[i], "flavour code from " + algoName);
+    tab->addColumn<int16_t>(algoName + "FlavLeading",
+                            fjAlgoLeadingFlavs[i],
+                            "leading flavour from " + algoName);
+  }
 
   iEvent.put(std::move(tab));
 }
