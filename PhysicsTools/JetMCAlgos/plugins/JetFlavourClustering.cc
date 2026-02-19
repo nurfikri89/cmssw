@@ -115,6 +115,7 @@
 //
 typedef std::shared_ptr<fastjet::ClusterSequence> ClusterSequencePtr;
 typedef std::shared_ptr<fastjet::JetDefinition> JetDefPtr;
+typedef std::shared_ptr<fastjet::JetDefinition::Plugin> PluginPtr;
 
 //
 // class declaration
@@ -209,6 +210,10 @@ private:
   ClusterSequencePtr fjClusterSeq_;
   JetDefPtr fjJetDefinition_;
   JetDefPtr fjSubjetDefinition_;
+
+  PluginPtr fjPlugin_ifn_;
+  JetDefPtr fjJetDefinition_ifn_;
+  ClusterSequencePtr fjClusterSeq_ifn_;
 };
 
 //
@@ -319,6 +324,15 @@ JetFlavourClustering::JetFlavourClustering(const edm::ParameterSet& iConfig)
           throw cms::Exception("InvalidIFNFlavourSummationScheme") << "IFN flavour summation scheme is invalid: " << ifnParams_.flavSummationScheme
             << ", use net_flav | modulo_2 | any_abs" << std::endl;
       }
+      fjPlugin_ifn_ = PluginPtr(
+        new fastjet::contrib::IFNPlugin(
+          *fjJetDefinition_,
+          ifnParams_.alpha,
+          ifnParams_.omega,
+          ifnParams_.flavSummation
+        )
+      );
+      fjJetDefinition_ifn_ = std::make_shared<fastjet::JetDefinition>(&*fjPlugin_ifn_);
     }
   } else {
     // Backward compatibility: if ifnAlgorithm PSet doesn't exist, IFN is disabled
@@ -456,19 +470,9 @@ void JetFlavourClustering::produce(edm::Event& iEvent, const edm::EventSetup& iS
 
   std::vector<int> ifnIndices;
   std::vector<fastjet::PseudoJet> ifnJets;
-  std::shared_ptr<fastjet::ClusterSequence> ifnClusterSeq;
   if (ifnParams_.enabled) {
-    auto ifnPlugin = new fastjet::contrib::IFNPlugin(
-        *fjJetDefinition_,
-        ifnParams_.alpha,
-        ifnParams_.omega,
-        ifnParams_.flavSummation
-    );
-    fastjet::JetDefinition ifnJetDef(ifnPlugin);
-    ifnJetDef.delete_plugin_when_unused();
-
-    ifnClusterSeq = std::make_shared<fastjet::ClusterSequence>(ghostFinalPartons, ifnJetDef);
-    ifnJets = fastjet::sorted_by_pt(ifnClusterSeq->inclusive_jets());
+    fjClusterSeq_ifn_ = std::make_shared<fastjet::ClusterSequence>(ghostFinalPartons, *fjJetDefinition_ifn_);
+    ifnJets = fastjet::sorted_by_pt(fjClusterSeq_ifn_->inclusive_jets());
     matchReclusteredJets(jets, ifnJets, ifnIndices, true);
   }
 
@@ -550,29 +554,31 @@ void JetFlavourClustering::produce(edm::Event& iEvent, const edm::EventSetup& iS
       // since the "ghosts" are extremely soft, the configuration and ordering of the reclustered and original jets should in principle stay the same
       if ((std::abs(inclusiveJets.at(reclusteredIndices.at(i)).pt() - jets->at(i).pt()) / jets->at(i).pt()) >
           relPtTolerance_) {
-        if (jets->at(i).pt() < 10.)  // special handling for low-Pt jets (Pt<10 GeV)
-          edm::LogWarning("JetPtMismatchAtLowPt")
-              << "The reclustered and original jet " << i << " have different Pt's ("
-              << inclusiveJets.at(reclusteredIndices.at(i)).pt() << " vs " << jets->at(i).pt()
-              << " GeV, respectively).\n"
-              << "Please check that the jet algorithm and jet size match those used for the original jet collection "
-                 "and also make sure the original jets are uncorrected. In addition, make sure you are not using "
-                 "CaloJets which are presently not supported.\n"
-              << "Since the mismatch is at low Pt (Pt<10 GeV), it is ignored and only a warning is issued.\n"
-              << "\nIn extremely rare instances the mismatch could be caused by a difference in the machine precision "
-                 "in which case make sure the original jet collection is produced and reclustering is performed in the "
-                 "same job.";
-        else
-          edm::LogError("JetPtMismatch")
-              << "The reclustered and original jet " << i << " have different Pt's ("
-              << inclusiveJets.at(reclusteredIndices.at(i)).pt() << " vs " << jets->at(i).pt()
-              << " GeV, respectively).\n"
-              << "Please check that the jet algorithm and jet size match those used for the original jet collection "
-                 "and also make sure the original jets are uncorrected. In addition, make sure you are not using "
-                 "CaloJets which are presently not supported.\n"
-              << "\nIn extremely rare instances the mismatch could be caused by a difference in the machine precision "
-                 "in which case make sure the original jet collection is produced and reclustering is performed in the "
-                 "same job.";
+        if (jets->at(i).pt() < 10.){  // special handling for low-Pt jets (Pt<10 GeV)
+          // edm::LogWarning("JetPtMismatchAtLowPt")
+          //     << "The reclustered and original jet " << i << " have different Pt's ("
+          //     << inclusiveJets.at(reclusteredIndices.at(i)).pt() << " vs " << jets->at(i).pt()
+          //     << " GeV, respectively).\n"
+          //     << "Please check that the jet algorithm and jet size match those used for the original jet collection "
+          //        "and also make sure the original jets are uncorrected. In addition, make sure you are not using "
+          //        "CaloJets which are presently not supported.\n"
+          //     << "Since the mismatch is at low Pt (Pt<10 GeV), it is ignored and only a warning is issued.\n"
+          //     << "\nIn extremely rare instances the mismatch could be caused by a difference in the machine precision "
+          //        "in which case make sure the original jet collection is produced and reclustering is performed in the "
+          //        "same job.";
+        }
+        else{
+          // edm::LogError("JetPtMismatch")
+          //     << "The reclustered and original jet " << i << " have different Pt's ("
+          //     << inclusiveJets.at(reclusteredIndices.at(i)).pt() << " vs " << jets->at(i).pt()
+          //     << " GeV, respectively).\n"
+          //     << "Please check that the jet algorithm and jet size match those used for the original jet collection "
+          //        "and also make sure the original jets are uncorrected. In addition, make sure you are not using "
+          //        "CaloJets which are presently not supported.\n"
+          //     << "\nIn extremely rare instances the mismatch could be caused by a difference in the machine precision "
+          //        "in which case make sure the original jet collection is produced and reclustering is performed in the "
+          //        "same job.";
+        }
       }
 
 
@@ -606,7 +612,7 @@ void JetFlavourClustering::produce(edm::Event& iEvent, const edm::EventSetup& iS
           (*jetFlavourInfos)[jets->refAt(i)].setAlgoFlav(reco::FlavAlgo::kIFN, fastjet::contrib::FlavInfo(0));
         } else {
           std::string ifnDescription = fastjet::contrib::FlavHistory::current_flavour_of(ifnJets.at(ifnIndices.at(i))).description();
-          std::cout << "IFN flavour for jet " << i << ": " << ifnDescription << std::endl;
+          // std::cout << "IFN flavour for jet " << i << ": " << ifnDescription << std::endl;
           (*jetFlavourInfos)[jets->refAt(i)].setAlgoFlav(reco::FlavAlgo::kIFN, fastjet::contrib::FlavHistory::current_flavour_of(ifnJets.at(ifnIndices.at(i))));
         }
       }
@@ -615,7 +621,7 @@ void JetFlavourClustering::produce(edm::Event& iEvent, const edm::EventSetup& iS
           (*jetFlavourInfos)[jets->refAt(i)].setAlgoFlav(reco::FlavAlgo::kGHS, fastjet::contrib::FlavInfo(0));
         } else {
           std::string ghsDescription = fastjet::contrib::FlavHistory::current_flavour_of(ghsJets.at(ghsIndices.at(i))).description();
-          std::cout << "GHS flavour for jet " << i << ": " << ghsDescription << std::endl;
+          // std::cout << "GHS flavour for jet " << i << ": " << ghsDescription << std::endl;
           (*jetFlavourInfos)[jets->refAt(i)].setAlgoFlav(reco::FlavAlgo::kGHS, fastjet::contrib::FlavHistory::current_flavour_of(ghsJets.at(ghsIndices.at(i))));
         }
       }
@@ -671,7 +677,7 @@ void JetFlavourClustering::produce(edm::Event& iEvent, const edm::EventSetup& iS
   //deallocate only at the end of the event processing
   fjClusterSeq_.reset();
 
-  ifnClusterSeq.reset();
+  fjClusterSeq_ifn_.reset();
 
   // put jet flavour infos in the event
   iEvent.put(std::move(jetFlavourInfos));
@@ -729,24 +735,28 @@ void JetFlavourClustering::matchReclusteredJets(const edm::Handle<edm::View<reco
     if (matchedIdx >= 0) {
       if (matchedDR2 > rParam_ * rParam_) {
         if (allowUnmatchedReclusteredJets) {
-          edm::LogWarning("MatchedJetsFarApart")
-              << "Matched reclustered jet " << matchedIdx << " and original jet " << j
-              << " are separated by dR=" << sqrt(matchedDR2) << " which is greater than the jet size R=" << rParam_
-              << ".\n"
-              << "This is not expected so the matching of these two jets has been discarded. Please check that the jet "
-                 "algorithm and jet size match those used for the original jet collection.";
+          // edm::LogWarning("MatchedJetsFarApart")
+          //     << "Matched reclustered jet " << matchedIdx << " and original jet " << j
+          //     << " are separated by dR=" << sqrt(matchedDR2) << " which is greater than the jet size R=" << rParam_
+          //     << ".\n"
+          //     << "This is not expected so the matching of these two jets has been discarded. Please check that the jet "
+          //        "algorithm and jet size match those used for the original jet collection.";
           matchedIdx = -1;
-        } else
-        edm::LogError("JetMatchingFailed") << "Matched reclustered jet " << matchedIdx << " and original jet " << j
-                                           << " are separated by dR=" << sqrt(matchedDR2)
-                                           << " which is greater than the jet size R=" << rParam_ << ".\n"
-                                           << "This is not expected so please check that the jet algorithm and jet "
-                                              "size match those used for the original jet collection.";
-      } else
+        } 
+        else{
+        // edm::LogError("JetMatchingFailed") << "Matched reclustered jet " << matchedIdx << " and original jet " << j
+        //                                    << " are separated by dR=" << sqrt(matchedDR2)
+        //                                    << " which is greater than the jet size R=" << rParam_ << ".\n"
+        //                                    << "This is not expected so please check that the jet algorithm and jet "
+        //                                       "size match those used for the original jet collection.";
+        }
+      } 
+    else
         matchedLocks.at(matchedIdx) = true;
-    } else
-      edm::LogError("JetMatchingFailed") << "Matching reclustered to original jets failed. Please check that the jet "
-                                            "algorithm and jet size match those used for the original jet collection.";
+    } else{
+      // edm::LogError("JetMatchingFailed") << "Matching reclustered to original jets failed. Please check that the jet "
+      //                                       "algorithm and jet size match those used for the original jet collection.";
+    }
 
     matchedIndices.push_back(matchedIdx);
   }
