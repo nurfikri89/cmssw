@@ -102,6 +102,8 @@ from Calibration.HcalAlCaRecoProducers.ALCARECOHcalCalIsoTrk_cff import *
 from Calibration.HcalAlCaRecoProducers.ALCARECOHcalCalIsoTrkFilter_cff import *
 from Calibration.HcalAlCaRecoProducers.ALCARECOHcalCalIsoTrkFilterNoHLT_cff import *
 from Calibration.HcalAlCaRecoProducers.ALCARECOHcalCalIsoTrkProducerFilter_cff import *
+# Run HcalCalIsoTrkProducerFilter at low luminosity with widened momentum range
+from Calibration.HcalAlCaRecoProducers.ALCARECOHcalCalLowPUIsoTrkProducerFilter_cff import *
 # Run HcalCalIsoTrkProducerFilter on dedicated AlCaRaw data stream AlCaHcalIsoTrk
 from Calibration.HcalAlCaRecoProducers.ALCARECOHcalCalIsoTrkFromAlCaRaw_cff import *
 # HCAL noise
@@ -253,6 +255,7 @@ pathALCARECOHcalCalIsoTrk = cms.Path(seqALCARECOHcalCalIsoTrk*ALCARECOHcalCalIso
 pathALCARECOHcalCalIsoTrkFilter = cms.Path(seqALCARECOHcalCalIsoTrkFilter)
 pathALCARECOHcalCalIsoTrkFilterNoHLT = cms.Path(seqALCARECOHcalCalIsoTrkFilterNoHLT)
 pathALCARECOHcalCalIsoTrkProducerFilter = cms.Path(seqALCARECOHcalCalIsoTrkProducerFilter)
+pathALCARECOHcalCalLowPUIsoTrkProducerFilter = cms.Path(seqALCARECOHcalCalLowPUIsoTrkProducerFilter)
 pathALCARECOHcalCalIsoTrkFromAlCaRaw = cms.Path(seqALCARECOHcalCalIsoTrkFromAlCaRaw)
 pathALCARECOHcalCalNoise = cms.Path(seqALCARECOHcalCalNoise)
 pathALCARECOHcalCalIterativePhiSym = cms.Path(seqALCARECOHcalCalIterativePhiSym*ALCARECOHcalCalIterativePhisymDQM)
@@ -761,6 +764,15 @@ ALCARECOStreamHcalCalIsoTrkProducerFilter = cms.FilteredStream(
 	selectEvents = OutALCARECOHcalCalIsoTrkProducerFilter.SelectEvents,
 	dataTier = cms.untracked.string('ALCARECO')
 	)
+
+ALCARECOStreamHcalCalLowPUIsoTrkProducerFilter = cms.FilteredStream(
+  responsible = 'Nurfikri Norjoharuddeen',
+  name = 'HcalCalLowPUIsoTrkProducerFilter',
+  paths  = (pathALCARECOHcalCalLowPUIsoTrkProducerFilter),
+  content = OutALCARECOHcalCalLowPUIsoTrkProducerFilter.outputCommands,
+  selectEvents = OutALCARECOHcalCalLowPUIsoTrkProducerFilter.SelectEvents,
+  dataTier = cms.untracked.string('ALCARECO')
+  )
 
 ALCARECOStreamHcalCalIsoTrkFromAlCaRaw = cms.FilteredStream(
 	responsible = 'Joshua Hiltbrand',
