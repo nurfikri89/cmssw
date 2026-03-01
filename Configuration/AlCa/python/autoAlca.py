@@ -11,7 +11,7 @@ AlCaRecoMatrix = {
                   "Cosmics"                     : "SiPixelCalCosmics+SiStripCalCosmics+TkAlCosmics0T+MuAlGlobalCosmics",
                   "DoubleMuon"                  : "TkAlZMuMu+TkAlDiMuonAndVertex+MuAlCalIsolatedMu",
                   "DoubleMuonLowMass"           : "TkAlJpsiMuMu+TkAlUpsilonMuMu",
-                  "EGamma"                      : "EcalESAlign+EcalUncalWElectron+EcalUncalZElectron+HcalCalIsoTrkProducerFilter+HcalCalIterativePhiSym",
+                  "EGamma"                      : "EcalESAlign+EcalUncalWElectron+EcalUncalZElectron+HcalCalIsoTrkProducerFilter+HcalCalLowPUIsoTrkProducerFilter++HcalCalIterativePhiSym",
                   "Express"                     : "SiStripCalZeroBias+TkAlMinBias+TkAlZMuMu+SiStripPCLHistos+SiStripCalMinBias+SiStripCalMinBiasAAG+Hotline+SiPixelCalZeroBias",
                   "ExpressAlignment"            : "TkAlMinBias",
                   "ExpressCosmics"              : "SiStripPCLHistos+SiStripCalZeroBias+TkAlCosmics0T+SiPixelCalZeroBias+SiPixelCalCosmics+SiStripCalCosmics",
