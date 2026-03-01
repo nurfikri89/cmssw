@@ -8,7 +8,7 @@ from Calibration.HcalAlCaRecoProducers.alcaHcalIsotrkProducer_cff import alcaHca
 from Calibration.HcalAlCaRecoProducers.alcaHcalIsotrkFilter_cfi import alcaHcalIsotrkFilter as _alcaHcalIsotrkFilter
 
 alcaHcalLowPUIsotrkProducer = _alcaHcalIsotrkProducer.clone(
-  momentumLow = 20,
+  momentumLow = 10,
   momentumHigh = 100,
 )
 
