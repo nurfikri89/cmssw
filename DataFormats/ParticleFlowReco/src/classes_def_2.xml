@@ -1,7 +1,9 @@
 <lcgdict>
 <selection>
 
-  <class name="reco::PFCluster" ClassVersion="17">
+  <class name="reco::PFCluster" ClassVersion="19">
+   <version ClassVersion="19" checksum="3021111509"/>
+   <version ClassVersion="18" checksum="3321915641"/>
    <version ClassVersion="17" checksum="3021111509"/>
    <version ClassVersion="16" checksum="1786894710"/>
    <version ClassVersion="15" checksum="1837961152"/>
@@ -16,7 +18,9 @@
   <class name="std::vector<reco::PFCluster>"/>
   <class name="edm::Wrapper<std::vector<reco::PFCluster> >"/>
 
-  <class name="reco::HGCalMultiCluster" ClassVersion="3">
+  <class name="reco::HGCalMultiCluster" ClassVersion="5">
+    <version ClassVersion="5" checksum="1942695459"/>
+    <version ClassVersion="4" checksum="3434546031"/>
     <version ClassVersion="3" checksum="1942695459"/>
   </class>
   <class name="std::vector<reco::HGCalMultiCluster>"/>

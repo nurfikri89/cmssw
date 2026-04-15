@@ -808,6 +808,7 @@ void PFMuonAlgo::addMissingMuons(edm::Handle<reco::MuonCollection> muons, reco::
                                            sqrt(bestTrackType.first->p() * bestTrackType.first->p() + 0.1057 * 0.1057));
 
           cands->push_back(PFCandidate(charge, momentum, reco::PFCandidate::mu));
+          cands->back().setRecoLocationIdx(72);
 
           changeTrack(cands->back(), bestTrackType);
 

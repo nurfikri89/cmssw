@@ -64,6 +64,15 @@ namespace reco {
     /// vector of rechit fractions
     const std::vector<reco::PFRecHitFraction>& recHitFractions() const { return rechits_; }
 
+    /// FIKRI
+    // void resetParentClusterKeys();
+
+    /// FIKRI
+    // void addParentClusterKeys(const int& key);
+
+    /// FIKRI
+    // const std::set<int>& parentClusterKeys() const { return parentclusterkeys_; }
+
     /// set layer
     void setLayer(PFLayer::Layer layer);
 
@@ -139,6 +148,10 @@ namespace reco {
   private:
     /// vector of rechit fractions (transient)
     std::vector<reco::PFRecHitFraction> rechits_;
+
+    /// If this cluster is formed from other clusters.
+    // store the keys of the parent clusters
+    // std::set<int> parentclusterkeys_;
 
     /// cluster position: rho, eta, phi (transient)
     REPPoint posrep_;

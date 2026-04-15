@@ -204,6 +204,16 @@ void PFEnergyCalibration::energyEmHad(double t, double& e, double& h, double eta
   if (t < 1.)
     return;
 
+  //
+  // TEST TEMP FIKRI:
+  // Do NOT apply any corrections for clusters with |cluster_eta| > 2.5, and no tracks
+  //
+  // if (tt < 0. && absEta >= 2.50) {
+  //  e = ee;
+  //  h = hh;
+  //  return;
+  // }
+
   // Barrel calibration
   if (absEta < 1.48) {
     // The energy correction

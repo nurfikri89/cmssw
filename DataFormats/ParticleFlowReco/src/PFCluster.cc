@@ -21,6 +21,7 @@ void PFCluster::reset() {
   time_ = -99.;
   layer_ = PFLayer::NONE;
   rechits_.clear();
+  // parentclusterkeys_.clear();
 
   CaloCluster::reset();
 }
@@ -35,6 +36,14 @@ void PFCluster::addRecHitFraction(const reco::PFRecHitFraction& frac) {
 
   addHitAndFraction(frac.recHitRef()->detId(), frac.fraction());
 }
+
+// void PFCluster::resetParentClusterKeys() {
+//   parentclusterkeys_.clear();
+// }
+
+// void PFCluster::addParentClusterKeys(const int& key) {
+//   parentclusterkeys_.insert(key);
+// }
 
 double PFCluster::getDepthCorrection(double energy, bool isBelowPS, bool isHadron) {
   double corrA = depthCorA_;

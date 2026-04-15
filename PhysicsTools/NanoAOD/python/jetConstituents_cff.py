@@ -48,8 +48,8 @@ pfCandidatesTable = cms.EDProducer("SimplePATCandidateFlatTableProducer",
       trkAlgo = Var("?hasTrackDetails()?bestTrack().algo():-1", int, doc="track algorithm"),
       trkP = Var("?hasTrackDetails()?bestTrack().p():-1", float, doc="track momemtum", precision=-1),
       trkPt = Var("?hasTrackDetails()?bestTrack().pt():-1", float, doc="track pt", precision=-1),
-      trkEta = Var("?hasTrackDetails()?bestTrack().eta():-1", float, doc="track eta", precision=-1),
-      trkPhi = Var("?hasTrackDetails()?bestTrack().phi():-1", float, doc="track phi", precision=-1),
+      trkEta = Var("?hasTrackDetails()?bestTrack().eta():-9", float, doc="track eta", precision=-1),
+      trkPhi = Var("?hasTrackDetails()?bestTrack().phi():-9", float, doc="track phi", precision=-1),
       dz = Var("?hasTrackDetails()?dz():-1", float, doc="dz", precision=15),
       dzErr = Var("?hasTrackDetails()?dzError():-1", float, doc="dz err", precision=15),
       d0 = Var("?hasTrackDetails()?dxy():-1", float, doc="dxy", precision=15),
@@ -79,26 +79,53 @@ pfCandidatesTable.variables.mass.precision = -1
 # PackedCandidateExtTableProducer is currently setup for
 # AOD->Nano workflow because we want reference to origina reco::PFCandidate
 #
+import RecoLocalCalo.HcalRecProducers.HBHEMethod2Parameters_cfi as method2
+#https://cmssdt.cern.ch/lxr/source/RecoLocalCalo/HcalRecProducers/python/HBHEMahiParameters_cfi.py
+import RecoLocalCalo.HcalRecProducers.HBHEMahiParameters_cfi as mahi
+
 pfCandidatesExtTable = cms.EDProducer("PackedCandidateExtTableProducer",
     srcPFCandidates = pfCandidatesTable.src,
     srcJets = _jetPuppiTable.src,
     srcMuons = _muonTable.src,
     packedPFCandidates = cms.InputTag("packedPFCandidates"),
     PFClustersHCAL = cms.InputTag("particleFlowClusterHCAL"),
+    PFClustersHBHE = cms.InputTag("particleFlowClusterHBHE"),
     PFRecHitsHBHE = cms.InputTag("particleFlowRecHitHBHE"),
     PFClustersECAL = cms.InputTag("particleFlowClusterECAL"),
     PFClustersPS = cms.InputTag("particleFlowClusterPS"),
+    hbheChannelInfo = cms.InputTag('hbhereco'),
     savePFClustersHCAL = cms.bool(True),
+    saveAllPFClustersHCAL = cms.bool(False),
+    savePFClustersHBHE = cms.bool(False),
     savePFRecHitsHBHE = cms.bool(True),
+    saveAllPFRecHitsHBHE = cms.bool(False),
+    saveHBHEChannelInfo = cms.bool(False),
+    saveMAHIInfo = cms.bool(False),
     savePFClustersECAL = cms.bool(True),
     savePFClustersPS = cms.bool(True),
-    matchMuonsWithPFRecHitsHBHE = cms.bool(False),
+    matchMuonsWithPFRecHitsHBHE = cms.bool(True),
     name = pfCandidatesTable.name,
     srcWeightsV = cms.VInputTag(),
     weightNamesV = cms.vstring(),
     weightDocsV = cms.vstring(),
     weightPrecision = cms.int32(-1),
-    saveFromPVvertexRef = cms.bool(True)
+    saveFromPVvertexRef = cms.bool(True),
+    # https://cmssdt.cern.ch/lxr/source/RecoLocalCalo/HcalRecAlgos/python/test/mahiDebugger_cfi.py
+    mahi_applyTimeSlew         = method2.m2Parameters.applyTimeSlew,
+    mahi_meanTime              = method2.m2Parameters.meanTime,
+    mahi_timeSigmaHPD          = method2.m2Parameters.timeSigmaHPD,
+    mahi_timeSigmaSiPM         = method2.m2Parameters.timeSigmaSiPM,
+    mahi_calculateArrivalTime  = mahi.mahiParameters.calculateArrivalTime,
+    mahi_timeAlgo              = mahi.mahiParameters.timeAlgo,
+    mahi_thEnergeticPulses     = mahi.mahiParameters.thEnergeticPulses,
+    mahi_dynamicPed            = mahi.mahiParameters.dynamicPed,
+    mahi_ts4Thresh             = mahi.mahiParameters.ts4Thresh,
+    mahi_chiSqSwitch           = mahi.mahiParameters.chiSqSwitch,
+    mahi_activeBXs             = mahi.mahiParameters.activeBXs,
+    mahi_nMaxItersMin          = mahi.mahiParameters.nMaxItersMin,
+    mahi_nMaxItersNNLS         = mahi.mahiParameters.nMaxItersNNLS,
+    mahi_deltaChiSqThresh      = mahi.mahiParameters.deltaChiSqThresh,
+    mahi_nnlsThresh            = mahi.mahiParameters.nnlsThresh,
 )
 
 ##############################################################
@@ -124,5 +151,25 @@ finalJetsAK4ConstituentsTable = cms.EDProducer("SimplePatJetConstituentTableProd
   jetConstCut = cms.string("")
 )
 
+
+##############################################################
+# Setup AK8 jet constituents table
+##############################################################
 jetConstituentsTask = cms.Task(finalJetsAK8PFConstituents,finalJetsAK4PFConstituents)
 jetConstituentsTablesTask = cms.Task(finalPFCandidates,pfCandidatesTable,pfCandidatesExtTable,finalJetsAK8ConstituentsTable,finalJetsAK4ConstituentsTable)
+
+from SimCalorimetry.HcalSimProducers.hcalSimParameters_cfi import *
+simHitsTable  = cms.EDProducer("SimHitTableProducer",
+    hcalSimParameters,
+    g4SimHitsPCaloHitsEB   = cms.InputTag("g4SimHits","EcalHitsEB"),
+    g4SimHitsPCaloHitsEE   = cms.InputTag("g4SimHits","EcalHitsEE"),
+    g4SimHitsPCaloHitsPS   = cms.InputTag("g4SimHits","EcalHitsES"),
+    g4SimHitsPCaloHitsHCAL = cms.InputTag("g4SimHits","HcalHits"),
+    saveSimCaloHitHBHE = cms.bool(False),
+    saveSimCaloHitEB   = cms.bool(False),
+    saveSimCaloHitEE   = cms.bool(False),
+    saveSimHitHBHE     = cms.bool(True),
+    saveSimHitEB       = cms.bool(True),
+    saveSimHitEE       = cms.bool(True),
+)
+jetConstituentsMCTablesTask = cms.Task(simHitsTable)

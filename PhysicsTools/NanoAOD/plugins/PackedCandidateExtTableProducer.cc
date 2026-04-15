@@ -34,8 +34,19 @@
 #include "DataFormats/PatCandidates/interface/Muon.h"
 #include "DataFormats/PatCandidates/interface/Jet.h"
 
+#include "DataFormats/HcalRecHit/interface/HBHERecHit.h"
+#include "DataFormats/HcalRecHit/interface/HcalRecHitCollections.h"
+
 #include "Calibration/IsolatedParticles/interface/MatrixHCALDetIds.h"
 #include "Calibration/IsolatedParticles/interface/CaloPropagateTrack.h"
+
+#include "RecoLocalCalo/HcalRecAlgos/interface/PulseShapeFitOOTPileupCorrection.h"
+#include "RecoLocalCalo/HcalRecAlgos/interface/HcalDeterministicFit.h"
+#include "RecoLocalCalo/HcalRecAlgos/interface/MahiFit.h"
+#include "CalibCalorimetry/HcalAlgos/interface/HcalTimeSlew.h"
+
+#include "CondFormats/HcalObjects/interface/HcalPFCuts.h"
+#include "CondFormats/HcalObjects/interface/HcalRespCorrs.h"
 
 #include "Geometry/Records/interface/CaloGeometryRecord.h"
 #include "Geometry/Records/interface/HcalRecNumberingRecord.h"
@@ -63,25 +74,39 @@ private:
   const edm::EDGetTokenT<pat::PackedCandidateCollection> pc_;
   const edm::EDGetTokenT<edm::Association<reco::PFCandidateCollection>> pc2pf_;
   const edm::EDGetTokenT<reco::PFClusterCollection> pfClustersHCALToken_;
+  const edm::EDGetTokenT<reco::PFClusterCollection> pfClustersHBHEToken_;
   const edm::EDGetTokenT<reco::PFRecHitCollection> pfRecHitsHBHEToken_;
   const edm::EDGetTokenT<reco::PFClusterCollection> pfClustersECALToken_;
   const edm::EDGetTokenT<reco::PFClusterCollection> pfClustersPSToken_;
 
+  const edm::EDGetTokenT<HBHEChannelInfoCollection> hbheChannelInfoToken_;
+
   const bool savePFClustersHCAL_;
+  const bool saveAllPFClustersHCAL_;
+  const bool savePFClustersHBHE_;
   const bool savePFRecHitsHBHE_;
+  const bool saveAllPFRecHitsHBHE_;
+  const bool saveHBHEChannelInfo_;
+  const bool saveMAHIInfo_;
   const bool savePFClustersECAL_;
   const bool savePFClustersPS_;
 
   const bool matchMuonsWithPFRecHitsHBHE_;
+
+
 
   const std::string name_;
   const bool saveFromPVvertexRef_;
   const int weightPrecision_;
 
   std::string name_PFClusterHCAL_;
+  std::string name_PFClusterHBHE_;
   std::string name_PFRecHitHBHE_;
   std::string name_PFCandToPFClusterHCAL_;
+  std::string name_PFCandToPFClusterECAL_;
+  std::string name_PFClusterHCALToPFClusterHBHE_;
   std::string name_PFClusterHCALToPFRecHitHBHE_;
+  std::string name_PFClusterHBHEToPFRecHitHBHE_;
   std::string name_MuonToPFRecHitHBHE_;
 
   std::string name_PFClusterECAL_;
@@ -98,6 +123,35 @@ private:
   edm::ESGetToken<MagneticField, IdealMagneticFieldRecord> magneticFieldToken_;
   edm::ESGetToken<CaloGeometry, CaloGeometryRecord> geometryToken_;
   edm::ESGetToken<HcalTopology, HcalRecNumberingRecord> hcalTopologyToken_;
+  edm::ESGetToken<HcalTimeSlew, HcalTimeSlewRecord> tokDelay_;
+  edm::ESGetToken<HcalPFCuts, HcalPFCutsRcd> hcalPFCutsToken_;
+  edm::ESGetToken<HcalRespCorrs, HcalRespCorrsRcd> hcalRespCorrsToken_;
+  
+  //
+  // MAHIrelated
+  // https://cmssdt.cern.ch/lxr/source/RecoLocalCalo/HcalRecAlgos/test/MahiDebugger.cc
+  //
+  bool  mahi_dynamicPed_;
+  float mahi_ts4Thresh_;
+  float mahi_chiSqSwitch_;
+  bool  mahi_applyTimeSlew_;
+  HcalTimeSlew::BiasSetting mahi_slewFlavor_;
+  double mahi_tsDelay1GeV_ = 0;
+  bool mahi_calculateArrivalTime_;
+  int mahi_timeAlgo_;
+  float mahi_thEnergeticPulses_;
+  float mahi_meanTime_;
+  float mahi_timeSigmaHPD_;
+  float mahi_timeSigmaSiPM_;
+  std::vector<int> mahi_activeBXs_;
+  int mahi_nMaxItersMin_;
+  int mahi_nMaxItersNNLS_;
+  float mahi_deltaChiSqThresh_;
+  float mahi_nnlsThresh_;
+
+  std::unique_ptr<MahiFit> mahi_;
+
+  const HcalTimeSlew* mahi_hcalTimeSlewDelay;
 };
 
 //
@@ -110,17 +164,40 @@ PackedCandidateExtTableProducer::PackedCandidateExtTableProducer(const edm::Para
   pc_(consumes<pat::PackedCandidateCollection>(iConfig.getParameter<edm::InputTag>("packedPFCandidates"))),
   pc2pf_(consumes<edm::Association<reco::PFCandidateCollection>>(iConfig.getParameter<edm::InputTag>("packedPFCandidates"))),
   pfClustersHCALToken_(consumes<reco::PFClusterCollection>(iConfig.getParameter<edm::InputTag>("PFClustersHCAL"))),
+  pfClustersHBHEToken_(consumes<reco::PFClusterCollection>(iConfig.getParameter<edm::InputTag>("PFClustersHBHE"))),
   pfRecHitsHBHEToken_(consumes<std::vector<reco::PFRecHit>>(iConfig.getParameter<edm::InputTag>("PFRecHitsHBHE"))),
   pfClustersECALToken_(consumes<reco::PFClusterCollection>(iConfig.getParameter<edm::InputTag>("PFClustersECAL"))),
   pfClustersPSToken_(consumes<reco::PFClusterCollection>(iConfig.getParameter<edm::InputTag>("PFClustersPS"))),
+  hbheChannelInfoToken_(consumes<HBHEChannelInfoCollection>(iConfig.getParameter<edm::InputTag>("hbheChannelInfo"))),
   savePFClustersHCAL_(iConfig.getParameter<bool>("savePFClustersHCAL")),
+  saveAllPFClustersHCAL_(iConfig.getParameter<bool>("saveAllPFClustersHCAL")),
+  savePFClustersHBHE_(iConfig.getParameter<bool>("savePFClustersHBHE")),
   savePFRecHitsHBHE_(iConfig.getParameter<bool>("savePFRecHitsHBHE")),
+  saveAllPFRecHitsHBHE_(iConfig.getParameter<bool>("saveAllPFRecHitsHBHE")),
+  saveHBHEChannelInfo_(iConfig.getParameter<bool>("saveHBHEChannelInfo")),
+  saveMAHIInfo_(iConfig.getParameter<bool>("saveMAHIInfo")),
   savePFClustersECAL_(iConfig.getParameter<bool>("savePFClustersECAL")),
   savePFClustersPS_(iConfig.getParameter<bool>("savePFClustersPS")),
   matchMuonsWithPFRecHitsHBHE_(iConfig.getParameter<bool>("matchMuonsWithPFRecHitsHBHE")),
   name_(iConfig.getParameter<std::string>("name")),
   saveFromPVvertexRef_(iConfig.getParameter<bool>("saveFromPVvertexRef")),
-  weightPrecision_(iConfig.getParameter<int>("weightPrecision"))
+  weightPrecision_(iConfig.getParameter<int>("weightPrecision")),
+  //
+  mahi_dynamicPed_(iConfig.getParameter<bool>("mahi_dynamicPed")),
+  mahi_ts4Thresh_(iConfig.getParameter<double>("mahi_ts4Thresh")),
+  mahi_chiSqSwitch_(iConfig.getParameter<double>("mahi_chiSqSwitch")),
+  mahi_applyTimeSlew_(iConfig.getParameter<bool>("mahi_applyTimeSlew")),
+  mahi_calculateArrivalTime_(iConfig.getParameter<bool>("mahi_calculateArrivalTime")),
+  mahi_timeAlgo_(iConfig.getParameter<int>("mahi_timeAlgo")),
+  mahi_thEnergeticPulses_(iConfig.getParameter<double>("mahi_thEnergeticPulses")),
+  mahi_meanTime_(iConfig.getParameter<double>("mahi_meanTime")),
+  mahi_timeSigmaHPD_(iConfig.getParameter<double>("mahi_timeSigmaHPD")),
+  mahi_timeSigmaSiPM_(iConfig.getParameter<double>("mahi_timeSigmaSiPM")),
+  mahi_activeBXs_(iConfig.getParameter<std::vector<int>>("mahi_activeBXs")),
+  mahi_nMaxItersMin_(iConfig.getParameter<int>("mahi_nMaxItersMin")),
+  mahi_nMaxItersNNLS_(iConfig.getParameter<int>("mahi_nMaxItersNNLS")),
+  mahi_deltaChiSqThresh_(iConfig.getParameter<double>("mahi_deltaChiSqThresh")),
+  mahi_nnlsThresh_(iConfig.getParameter<double>("mahi_nnlsThresh"))
 {
   v_pfcands_weights_tokens_ = edm::vector_transform(
     iConfig.getParameter<std::vector<edm::InputTag>>("srcWeightsV"),
@@ -132,9 +209,13 @@ PackedCandidateExtTableProducer::PackedCandidateExtTableProducer(const edm::Para
   produces<nanoaod::FlatTable>(name_);
 
   name_PFClusterHCAL_ = "PFClusterHCAL";
+  name_PFClusterHBHE_ = "PFClusterHBHE";
   name_PFRecHitHBHE_ = "PFRecHitHBHE";
   name_PFCandToPFClusterHCAL_ = "PFCandToPFClusterHCAL";
+  name_PFCandToPFClusterECAL_ = "PFCandToPFClusterECAL";
+  name_PFClusterHCALToPFClusterHBHE_ = "PFClusterHCALToPFClusterHBHE";
   name_PFClusterHCALToPFRecHitHBHE_ = "PFClusterHCALToPFRecHitHBHE";
+  name_PFClusterHBHEToPFRecHitHBHE_ = "PFClusterHBHEToPFRecHitHBHE";
   name_MuonToPFRecHitHBHE_ = "MuonToPFRecHitHBHBE";
 
   name_PFClusterECAL_ = "PFClusterECAL";
@@ -146,18 +227,30 @@ PackedCandidateExtTableProducer::PackedCandidateExtTableProducer(const edm::Para
 
   if(savePFClustersHCAL_)
     produces<nanoaod::FlatTable>(name_PFClusterHCAL_);
-  if (savePFRecHitsHBHE_)
+  if(savePFClustersHBHE_)
+    produces<nanoaod::FlatTable>(name_PFClusterHBHE_);
+  if (savePFRecHitsHBHE_){
     produces<nanoaod::FlatTable>(name_PFRecHitHBHE_);
+    if (saveHBHEChannelInfo_){
+      produces<nanoaod::FlatTable>("HBHEChannelInfo");
+    }
+  }
   if(savePFClustersHCAL_)
     produces<nanoaod::FlatTable>(name_PFCandToPFClusterHCAL_);
+  // if(savePFClustersHCAL_ && savePFClustersHBHE_)
+  //   produces<nanoaod::FlatTable>(name_PFClusterHCALToPFClusterHBHE_);
   if (savePFRecHitsHBHE_ && savePFClustersHCAL_)
     produces<nanoaod::FlatTable>(name_PFClusterHCALToPFRecHitHBHE_);
+  if (savePFRecHitsHBHE_ && savePFClustersHBHE_)
+    produces<nanoaod::FlatTable>(name_PFClusterHBHEToPFRecHitHBHE_);
   if (savePFRecHitsHBHE_ && matchMuonsWithPFRecHitsHBHE_){
     produces<nanoaod::FlatTable>(name_MuonToPFRecHitHBHE_);
     produces<nanoaod::FlatTable>("Muon");
   }
   if(savePFClustersECAL_)
     produces<nanoaod::FlatTable>(name_PFClusterECAL_);
+  if(savePFClustersECAL_)
+    produces<nanoaod::FlatTable>(name_PFCandToPFClusterECAL_);
   if (savePFClustersPS_)
     produces<nanoaod::FlatTable>(name_PFClusterPS_);
 
@@ -170,6 +263,29 @@ PackedCandidateExtTableProducer::PackedCandidateExtTableProducer(const edm::Para
   magneticFieldToken_ = esConsumes<MagneticField, IdealMagneticFieldRecord>();
   geometryToken_      = esConsumes<CaloGeometry, CaloGeometryRecord>();
   hcalTopologyToken_  = esConsumes<HcalTopology, HcalRecNumberingRecord>();
+  tokDelay_           = esConsumes<HcalTimeSlew, HcalTimeSlewRecord>(edm::ESInputTag("", "HBHE"));
+
+  hcalPFCutsToken_    = esConsumes<HcalPFCuts, HcalPFCutsRcd>(edm::ESInputTag("", "withTopo"));
+  hcalRespCorrsToken_ = esConsumes<HcalRespCorrs, HcalRespCorrsRcd>(edm::ESInputTag("", "withTopo"));
+
+  mahi_ = std::make_unique<MahiFit>();
+  mahi_->setParameters(mahi_dynamicPed_,
+                       mahi_ts4Thresh_,
+                       mahi_chiSqSwitch_,
+                       mahi_applyTimeSlew_,
+                       HcalTimeSlew::Medium,
+                       mahi_calculateArrivalTime_,
+                       mahi_timeAlgo_,
+                       mahi_thEnergeticPulses_,
+                       mahi_meanTime_,
+                       mahi_timeSigmaHPD_,
+                       mahi_timeSigmaSiPM_,
+                       mahi_activeBXs_,
+                       mahi_nMaxItersMin_,
+                       mahi_nMaxItersNNLS_,
+                       mahi_deltaChiSqThresh_,
+                       mahi_nnlsThresh_);
+
 }
 
 PackedCandidateExtTableProducer::~PackedCandidateExtTableProducer() {}
@@ -220,6 +336,13 @@ void PackedCandidateExtTableProducer::produce(edm::Event &iEvent, const edm::Eve
   //
   //
   //
+  std::vector<float> PFCand_ptRECO;   PFCand_ptRECO.reserve(pfCands->size());
+  std::vector<float> PFCand_etaRECO;  PFCand_etaRECO.reserve(pfCands->size());
+  std::vector<float> PFCand_phiRECO;  PFCand_phiRECO.reserve(pfCands->size());
+  std::vector<float> PFCand_massRECO; PFCand_massRECO.reserve(pfCands->size());
+  std::vector<float> PFCand_energyRECO; PFCand_energyRECO.reserve(pfCands->size());
+  std::vector<unsigned int> PFCand_birthId;PFCand_birthId.reserve(pfCands->size());
+
   std::vector<float> PFCand_hcalDepthEnergyFraction1; PFCand_hcalDepthEnergyFraction1.reserve(pfCands->size());
   std::vector<float> PFCand_hcalDepthEnergyFraction2; PFCand_hcalDepthEnergyFraction2.reserve(pfCands->size());
   std::vector<float> PFCand_hcalDepthEnergyFraction3; PFCand_hcalDepthEnergyFraction3.reserve(pfCands->size());
@@ -246,7 +369,7 @@ void PackedCandidateExtTableProducer::produce(edm::Event &iEvent, const edm::Eve
   std::vector<int> PFCand_nPFClusterECALInBlock;PFCand_nPFClusterECALInBlock.reserve(pfCands->size());
   std::vector<int> PFCand_nPFClusterPSInBlock;PFCand_nPFClusterPSInBlock.reserve(pfCands->size());
 
-
+  // std::set<int> SelectedPFTrack_keys;
 
   //
   // We will keep track of which PFClusters to keep by storing the keys
@@ -304,6 +427,14 @@ void PackedCandidateExtTableProducer::produce(edm::Event &iEvent, const edm::Eve
     PFCand_hcalDepthEnergyFraction6.push_back(pfref.get()->hcalDepthEnergyFraction(6));
     PFCand_hcalDepthEnergyFraction7.push_back(pfref.get()->hcalDepthEnergyFraction(7));
 
+    PFCand_ptRECO.push_back(pfref.get()->pt());
+    PFCand_etaRECO.push_back(pfref.get()->eta());
+    PFCand_phiRECO.push_back(pfref.get()->phi());
+    PFCand_massRECO.push_back(pfref.get()->mass());
+    PFCand_energyRECO.push_back(pfref.get()->energy());
+
+    PFCand_birthId.push_back(pfref.get()->getRecoLocationIdx());
+
     PFCand_ecalEnergy.push_back(pfref.get()->ecalEnergy());
     PFCand_rawEcalEnergy.push_back(pfref.get()->rawEcalEnergy());
     PFCand_hcalEnergy.push_back(pfref.get()->hcalEnergy());
@@ -345,6 +476,7 @@ void PackedCandidateExtTableProducer::produce(edm::Event &iEvent, const edm::Eve
         switch( typeInBlock ) {
           case reco::PFBlockElement::TRACK:
             nTrackInBlock++;
+            // SelectedPFTrack_keys.insert(elementsInOriBlock[eBlock].trackRef().key());
             break;
           case reco::PFBlockElement::HCAL:
             nClusterHCALInBlock++;
@@ -374,6 +506,7 @@ void PackedCandidateExtTableProducer::produce(edm::Event &iEvent, const edm::Eve
             switch( typeInBlock ) {
               case reco::PFBlockElement::TRACK:
                 nTrack++;
+                // SelectedPFTrack_keys.insert(elementsInOriBlock[eBlock].trackRef().key());
                 break;
               case reco::PFBlockElement::HCAL:
                 nClusterHCAL++;
@@ -429,8 +562,17 @@ void PackedCandidateExtTableProducer::produce(edm::Event &iEvent, const edm::Eve
   iEvent.getByToken(pfClustersHCALToken_, pfClustersHCALHandle);
 
   //
+  //
+  //
+  if (saveAllPFClustersHCAL_){
+    for (int key = 0; key < (int)pfClustersHCALHandle->size(); key++) {
+      SelectedPFClusterHCAL_keys.insert(key);
+    }
+  }
+
+  //
   // We will keep track of which PFRecHit to keep by storing the detId
-  // to of each PFRecHit object in a set.
+  // of each PFRecHit object in a set.
   //
   std::set<uint32_t> SelectedPFRecHitHBHE_rawDetId;
 
@@ -438,6 +580,11 @@ void PackedCandidateExtTableProducer::produce(edm::Event &iEvent, const edm::Eve
   //second.first: DetId
   //second.second: RecHit energy fraction to the PFCluster
   std::vector<std::pair<int,std::pair<unsigned int,float>>> MappingInfo_PFClusterHCAL_To_PFRecHit;
+
+  //first: SelectedPFClusterIdx
+  //second.first: DetId
+  //second.second: RecHit energy fraction to the PFCluster
+  std::vector<std::pair<int,unsigned int>> MappingInfo_PFClusterHCAL_To_PFClusterHBHE;
 
   if (savePFClustersHCAL_){
     for (const int key : SelectedPFClusterHCAL_keys) {
@@ -460,6 +607,14 @@ void PackedCandidateExtTableProducer::produce(edm::Event &iEvent, const edm::Eve
           std::make_pair(PFClusterHCAL_nhits.size()-1, std::make_pair(clusterHits[ihit].first,clusterHits[ihit].second))
         );
       }
+
+      //Loop over parent PFClusters in PFClustersHBHE (This can be completely bogus)
+      // const std::set<int>& parentClusterKeys = clusterRef->parentClusterKeys();
+      // for (auto ikey = parentClusterKeys.begin(); ikey != parentClusterKeys.end(); ++ikey) {
+      //   MappingInfo_PFClusterHCAL_To_PFClusterHBHE.push_back(
+      //     std::make_pair(PFClusterHCAL_nhits.size()-1, *ikey)
+      //   );
+      // }
       nPFClusterHCAL++;
     }
   }
@@ -483,6 +638,79 @@ void PackedCandidateExtTableProducer::produce(edm::Event &iEvent, const edm::Eve
     PFCandToPFClusterHCAL_PFCandIdx.push_back(PFCandIdx);
     PFCandToPFClusterHCAL_PFClusterIdx.push_back(PFClusterIdx);
     nPFCandToPFClusterHCAL++;
+  }
+
+  //==========================================
+  //
+  // PFClusterHBHE
+  // NOTE: This part here can be completely bogus.
+  // I hacked my way with PFCluster with the intention
+  // that I am able to store key of the PFClustersHBHE that
+  // are used for PFClustersHCAL (Multidepth clusterint)
+  //
+  //==========================================
+  unsigned int nPFClusterHBHE=0;
+  std::vector<float>          PFClusterHBHE_pt;
+  std::vector<float>          PFClusterHBHE_energy;
+  std::vector<float>          PFClusterHBHE_eta;
+  std::vector<float>          PFClusterHBHE_phi;
+  std::vector<int>            PFClusterHBHE_layer;
+  std::vector<int>            PFClusterHBHE_nhits;
+  std::vector<unsigned int>   PFClusterHBHE_seedhit_detId;
+  std::vector<int>            PFClusterHBHE_key;
+
+  edm::Handle<reco::PFClusterCollection> pfClustersHBHEHandle;
+  iEvent.getByToken(pfClustersHBHEToken_, pfClustersHBHEHandle);
+
+  //first: SelectedPFClusterIdx
+  //second.first: DetId
+  //second.second: RecHit energy fraction to the PFCluster
+  std::vector<std::pair<int,std::pair<unsigned int,float>>> MappingInfo_PFClusterHBHE_To_PFRecHit;
+
+  unsigned int nPFClusterHCALToPFClusterHBHBE=0;
+  std::vector<int>   PFClusterHCALToPFClusterHBHE_PFClusterHCALIdx;
+  std::vector<int>   PFClusterHCALToPFClusterHBHE_PFClusterHBHEIdx;
+
+  if (savePFClustersHBHE_){
+    for (int key = 0; key < (int)pfClustersHBHEHandle->size(); key++) {
+      reco::PFClusterRef clusterRef( pfClustersHBHEHandle, key );
+
+      PFClusterHBHE_pt.push_back(clusterRef->pt());
+      PFClusterHBHE_energy.push_back(clusterRef->energy());
+      PFClusterHBHE_eta.push_back(clusterRef->eta());
+      PFClusterHBHE_phi.push_back(clusterRef->phi());
+      PFClusterHBHE_layer.push_back(clusterRef->layer());
+      PFClusterHBHE_seedhit_detId.push_back(clusterRef->seed());
+      PFClusterHBHE_key.push_back(key);
+      const std::vector<std::pair<DetId, float> >& clusterHits = clusterRef->hitsAndFractions();
+      PFClusterHBHE_nhits.push_back(clusterHits.size());
+
+      // Loop over PFRecHits
+      for (size_t ihit=0; ihit < clusterHits.size(); ++ihit){
+        SelectedPFRecHitHBHE_rawDetId.insert(clusterHits[ihit].first);
+        MappingInfo_PFClusterHBHE_To_PFRecHit.push_back(
+          std::make_pair(PFClusterHBHE_nhits.size()-1, std::make_pair(clusterHits[ihit].first,clusterHits[ihit].second))
+        );
+      }
+      nPFClusterHBHE++;
+    }
+
+    //==================================================
+    // Make branches for PFClusterHCAL <-> PFClusterHBHE mapping
+    //======================================================
+    // for (size_t i = 0; i < MappingInfo_PFClusterHCAL_To_PFClusterHBHE.size(); ++i) {
+    //   int PFClusterHCALIdx = MappingInfo_PFClusterHCAL_To_PFClusterHBHE[i].first;
+    //   int PFClusterHBHEKey = MappingInfo_PFClusterHCAL_To_PFClusterHBHE[i].second;
+    //   //
+    //   int PFClusterHBHEIdx = -1;
+    //   auto it = std::find(PFClusterHBHE_key.begin(), PFClusterHBHE_key.end(), PFClusterHBHEKey);
+    //   if (it != PFClusterHBHE_key.end()) {
+    //     PFClusterHBHEIdx = std::distance(PFClusterHBHE_key.begin(), it);
+    //   }
+    //   PFClusterHCALToPFClusterHBHE_PFClusterHCALIdx.push_back(PFClusterHCALIdx);
+    //   PFClusterHCALToPFClusterHBHE_PFClusterHBHEIdx.push_back(PFClusterHBHEIdx);
+    //   nPFClusterHCALToPFClusterHBHBE++;
+    // }
   }
 
   //==========================================
@@ -554,15 +782,23 @@ void PackedCandidateExtTableProducer::produce(edm::Event &iEvent, const edm::Eve
   //==========================================
   unsigned int nPFRecHitHBHE=0;
   std::vector<float>          PFRecHitHBHE_energy;
+  std::vector<float>          PFRecHitHBHE_time;
   std::vector<int>            PFRecHitHBHE_ieta;
   std::vector<int>            PFRecHitHBHE_iphi;
   std::vector<int>            PFRecHitHBHE_depth;
   std::vector<unsigned int>   PFRecHitHBHE_detId;
+  std::vector<float>          PFRecHitHBHE_pfCutThresh;
+  std::vector<float>          PFRecHitHBHE_respCorr;
 
   unsigned int nPFClusterHCALToPFRecHitHBHBE=0;
   std::vector<int>   PFClusterHCALToPFRecHitHBHBE_PFClusterHCALIdx;
   std::vector<int>   PFClusterHCALToPFRecHitHBHBE_PFRecHitHBHEIdx;
   std::vector<float> PFClusterHCALToPFRecHitHBHBE_fraction;
+
+  unsigned int nPFClusterHBHEToPFRecHitHBHBE=0;
+  std::vector<int>   PFClusterHBHEToPFRecHitHBHBE_PFClusterHBHEIdx;
+  std::vector<int>   PFClusterHBHEToPFRecHitHBHBE_PFRecHitHBHEIdx;
+  std::vector<float> PFClusterHBHEToPFRecHitHBHBE_fraction;
 
   unsigned int nMuonToPFRecHitHBHBE=0;
   std::vector<int>   MuonToPFRecHitHBHBE_MuonIdx;
@@ -572,6 +808,9 @@ void PackedCandidateExtTableProducer::produce(edm::Event &iEvent, const edm::Eve
   std::vector<unsigned int>   Muon_ClosestPFRecHitHBHEDetId;
 
   if (savePFRecHitsHBHE_){
+    const HcalPFCuts* hcalPFCuts = &iSetup.getData(hcalPFCutsToken_);
+    const HcalRespCorrs* hcalRespCorrs = &iSetup.getData(hcalRespCorrsToken_);
+
     edm::Handle<std::vector<reco::PFRecHit>> pfRecHitsHBHEHandle;
     iEvent.getByToken(pfRecHitsHBHEToken_, pfRecHitsHBHEHandle);
     auto pfRecHitsHBHE = pfRecHitsHBHEHandle.product();
@@ -579,18 +818,28 @@ void PackedCandidateExtTableProducer::produce(edm::Event &iEvent, const edm::Eve
     // std::cout << " pfRecHitsHBHE->size() = " << pfRecHitsHBHE->size() << std::endl;
     for (size_t idx = 0; idx < pfRecHitsHBHE->size(); idx++){
       reco::PFRecHitRef pfrechitRef( pfRecHitsHBHEHandle, idx);
-      if (SelectedPFRecHitHBHE_rawDetId.find(pfrechitRef.get()->detId()) == SelectedPFRecHitHBHE_rawDetId.end())
-        continue;
+      if (!saveAllPFRecHitsHBHE_){
+        if (SelectedPFRecHitHBHE_rawDetId.find(pfrechitRef.get()->detId()) == SelectedPFRecHitHBHE_rawDetId.end())
+          continue;
+      }
       HcalDetId theHcalDetId(pfrechitRef.get()->detId());
       PFRecHitHBHE_energy.push_back(pfrechitRef.get()->energy());
+      PFRecHitHBHE_time.push_back(pfrechitRef.get()->time());
       PFRecHitHBHE_ieta.push_back(theHcalDetId.ieta());
       PFRecHitHBHE_iphi.push_back(theHcalDetId.iphi());
       PFRecHitHBHE_depth.push_back(theHcalDetId.depth());
       PFRecHitHBHE_detId.push_back(pfrechitRef.get()->detId());
+      const HcalPFCut* cutValue = hcalPFCuts->getValues(pfrechitRef.get()->detId());
+      float thresholdE = cutValue->noiseThreshold();
+      PFRecHitHBHE_pfCutThresh.push_back(thresholdE);
+      float respCorr = 1.0f;
+      if (hcalRespCorrs->exists(pfrechitRef.get()->detId()))
+        respCorr = hcalRespCorrs->getValues(pfrechitRef.get()->detId())->getValue();
+      PFRecHitHBHE_respCorr.push_back(respCorr);
       nPFRecHitHBHE++;
     }
     //==================================================
-    // Make branches for PFRecHit <-> PFCluster mapping
+    // Make branches for PFRecHit <-> PFClusterHCAL mapping
     //==================================================
     for (size_t i = 0; i < MappingInfo_PFClusterHCAL_To_PFRecHit.size(); ++i) {
       int PFClusterIdx = MappingInfo_PFClusterHCAL_To_PFRecHit[i].first;
@@ -606,6 +855,25 @@ void PackedCandidateExtTableProducer::produce(edm::Event &iEvent, const edm::Eve
       PFClusterHCALToPFRecHitHBHBE_PFRecHitHBHEIdx.push_back(PFRecHitIdx);
       PFClusterHCALToPFRecHitHBHBE_fraction.push_back(fraction);
       nPFClusterHCALToPFRecHitHBHBE++;
+    }
+
+    //==================================================
+    // Make branches for PFRecHit <-> PFClusterHBHE mapping
+    //==================================================
+    for (size_t i = 0; i < MappingInfo_PFClusterHBHE_To_PFRecHit.size(); ++i) {
+      int PFClusterIdx = MappingInfo_PFClusterHBHE_To_PFRecHit[i].first;
+      int PFRecHitDetId = MappingInfo_PFClusterHBHE_To_PFRecHit[i].second.first;
+      float fraction = MappingInfo_PFClusterHBHE_To_PFRecHit[i].second.second;
+      //
+      int PFRecHitIdx = -1;
+      auto it = std::find(PFRecHitHBHE_detId.begin(), PFRecHitHBHE_detId.end(), PFRecHitDetId);
+      if (it != PFRecHitHBHE_detId.end()) {
+        PFRecHitIdx = std::distance(PFRecHitHBHE_detId.begin(), it);
+      }
+      PFClusterHBHEToPFRecHitHBHBE_PFClusterHBHEIdx.push_back(PFClusterIdx);
+      PFClusterHBHEToPFRecHitHBHBE_PFRecHitHBHEIdx.push_back(PFRecHitIdx);
+      PFClusterHBHEToPFRecHitHBHBE_fraction.push_back(fraction);
+      nPFClusterHBHEToPFRecHitHBHBE++;
     }
 
     //==================================================
@@ -632,6 +900,167 @@ void PackedCandidateExtTableProducer::produce(edm::Event &iEvent, const edm::Eve
           Muon_ClosestPFRecHitHBHEDetId[MuonIdx] = PFRecHitDetId;
         }
       }
+    }
+  }
+
+  //==========================================
+  //
+  // Digi information and MAHI output
+  //
+  //==========================================
+  //
+  // https://cmssdt.cern.ch/lxr/source/RecoLocalCalo/HcalRecAlgos/test/MahiDebugger.cc
+  //
+  edm::EventBase const& eventbase = iEvent;
+  // int nBxTrain = int(eventbase.bunchCrossing());
+
+  if (saveMAHIInfo_) {
+    mahi_hcalTimeSlewDelay = &iSetup.getData(tokDelay_);
+  }
+
+  edm::Handle<HBHEChannelInfoCollection> hbheChannelInfo;
+  iEvent.getByToken(hbheChannelInfoToken_, hbheChannelInfo);
+
+  std::vector<int>   hbhechan_ieta;
+  std::vector<int>   hbhechan_iphi;
+  std::vector<int>   hbhechan_depth;
+
+  std::vector<float> hbhechan_fcByPE;
+  std::vector<float> hbhechan_lambda;
+  std::vector<float> hbhechan_noisecorr;
+
+  std::vector<std::vector<float>>  hbhechan_tsRawCharge(8,std::vector<float>());
+  std::vector<std::vector<float>>  hbhechan_tsPedestal(8,std::vector<float>());
+  std::vector<std::vector<float>>  hbhechan_tsDFcPerADC(8,std::vector<float>());
+
+  std::vector<int>   mahi_nSamples;
+  std::vector<int>   mahi_soi;
+  std::vector<float> mahi_inTimeConst;
+  std::vector<float> mahi_inDarkCurrent;
+  std::vector<float> mahi_inPedAvg;
+  std::vector<float> mahi_inGain;
+  std::vector<bool>  mahi_use8;
+  std::vector<float> mahi_chiSq;
+  std::vector<float> mahi_arrivalTime;
+  std::vector<float> mahi_mahiEnergy;
+  std::vector<float> mahi_ootEnergy0;
+  std::vector<float> mahi_ootEnergy1;
+  std::vector<float> mahi_ootEnergy2;
+  std::vector<float> mahi_ootEnergy3;
+  std::vector<float> mahi_ootEnergy4;
+  std::vector<float> mahi_ootEnergy5;
+  std::vector<float> mahi_ootEnergy6;
+  std::vector<float> mahi_pedEnergy;
+
+  std::vector<std::vector<float>> mahi_count(8,std::vector<float>());
+  std::vector<std::vector<float>> mahi_inputTS(8,std::vector<float>());
+  std::vector<std::vector<int  >> mahi_inputTDC(8,std::vector<int>());
+  std::vector<std::vector<float>> mahi_itPulse(8,std::vector<float>());
+  std::vector<std::vector<float>> mahi_inNoiseADC(8,std::vector<float>());
+  std::vector<std::vector<float>> mahi_inNoiseDC(8,std::vector<float>());
+  std::vector<std::vector<float>> mahi_inNoisePhoto(8,std::vector<float>());
+  std::vector<std::vector<float>> mahi_inPedestal(8,std::vector<float>());
+  std::vector<std::vector<float>> mahi_totalUCNoise(8,std::vector<float>());
+
+  std::vector<std::vector<std::vector<float>>>
+    mahi_ootPulse(8,std::vector<std::vector<float>>(7,std::vector<float>()));
+
+  std::vector<int>  PFRecHitHBHE_HBHEChannelInfoIdx(PFRecHitHBHE_detId.size(),-1);
+
+  int nHBHEChannelInfo=0;
+
+  if (savePFRecHitsHBHE_ && saveHBHEChannelInfo_){
+    for (HBHEChannelInfoCollection::const_iterator iter = hbheChannelInfo->begin(); iter != hbheChannelInfo->end(); iter++) {
+      const HBHEChannelInfo& hci(*iter);
+      const HcalDetId detid = hci.id();
+
+      //
+      // Skip channels where we dont save the HBHE rechits. If we do save the rechit, get the index
+      //
+      std::size_t index = -1;
+      auto it = std::find(PFRecHitHBHE_detId.begin(), PFRecHitHBHE_detId.end(), detid);
+      if (it != PFRecHitHBHE_detId.end()) {
+        index = std::distance(PFRecHitHBHE_detId.begin(), it);
+      } else {
+        continue;
+      }
+
+      int ieta = detid.ieta();
+      int iphi = detid.iphi();
+      int depth = detid.depth();
+
+      hbhechan_ieta.push_back(ieta);
+      hbhechan_iphi.push_back(iphi);
+      hbhechan_depth.push_back(depth);
+
+      hbhechan_fcByPE.push_back(hci.fcByPE());
+      hbhechan_lambda.push_back(hci.lambda());
+      hbhechan_noisecorr.push_back(hci.noisecorr());
+
+      for (int iTS=0; iTS < 8; iTS++){
+        hbhechan_tsRawCharge[iTS].push_back(hci.tsRawCharge(iTS));
+        hbhechan_tsPedestal[iTS].push_back(hci.tsPedestal(iTS));
+        hbhechan_tsDFcPerADC[iTS].push_back(hci.tsDFcPerADC(iTS));
+      }
+
+      if (saveMAHIInfo_){
+        HcalPulseShapes theHcalPulseShapes_;
+        //for pulse shapes
+        std::unique_ptr<FitterFuncs::PulseShapeFunctor> psfPtr_;
+        std::unique_ptr<ROOT::Math::Functor> pfunctor_;
+
+
+        const MahiFit* mahi = mahi_.get();
+        mahi_->setPulseShapeTemplate(hci.recoShape(), theHcalPulseShapes_, hci.hasTimeInfo(), mahi_hcalTimeSlewDelay, hci.nSamples(), hci.tsGain(0));
+
+        MahiDebugInfo mdi;
+        // initialize energies so that the values in the previous iteration are not stored
+        mdi.mahiEnergy = 0;
+        for (unsigned int ioot = 0; ioot < 7; ioot++){
+          mdi.ootEnergy[ioot] = 0;
+        }
+        mahi->phase1Debug(hci, mdi);
+
+        mahi_nSamples.push_back(mdi.nSamples);
+        mahi_soi.push_back(mdi.soi);
+
+        mahi_inTimeConst.push_back(mdi.inTimeConst);
+        mahi_inDarkCurrent.push_back(mdi.inDarkCurrent);
+        mahi_inPedAvg.push_back(mdi.inPedAvg);
+        mahi_inGain.push_back(mdi.inGain);
+
+        mahi_use8.push_back(mdi.use3);
+        mahi_chiSq.push_back(mdi.chiSq);
+        mahi_arrivalTime.push_back(mdi.arrivalTime);
+        mahi_mahiEnergy.push_back(mdi.mahiEnergy);
+
+        mahi_ootEnergy0.push_back(mdi.ootEnergy[0]);
+        mahi_ootEnergy1.push_back(mdi.ootEnergy[1]);
+        mahi_ootEnergy2.push_back(mdi.ootEnergy[2]);
+        mahi_ootEnergy3.push_back(mdi.ootEnergy[3]);
+        mahi_ootEnergy4.push_back(mdi.ootEnergy[4]);
+        mahi_ootEnergy5.push_back(mdi.ootEnergy[5]);
+        mahi_ootEnergy6.push_back(mdi.ootEnergy[6]);
+
+        mahi_pedEnergy.push_back(mdi.pedEnergy);
+
+        for (int iTS=0; iTS < 8; iTS++){
+          mahi_count[iTS].push_back(mdi.count[iTS]);
+          mahi_inputTS[iTS].push_back(mdi.inputTS[iTS]);
+          mahi_inputTDC[iTS].push_back(mdi.inputTDC[iTS]);
+          mahi_itPulse[iTS].push_back(mdi.itPulse[iTS]);
+          mahi_inNoiseADC[iTS].push_back(mdi.inNoiseADC[iTS]);
+          mahi_inNoiseDC[iTS].push_back(mdi.inNoiseDC[iTS]);
+          mahi_inNoisePhoto[iTS].push_back(mdi.inNoisePhoto[iTS]);
+          mahi_inPedestal[iTS].push_back(mdi.inPedestal[iTS]);
+          mahi_totalUCNoise[iTS].push_back(mdi.totalUCNoise[iTS]);
+          for (int iOOT=0; iOOT < 7; iOOT++){
+            mahi_ootPulse[iTS][iOOT].push_back(mdi.ootPulse[iOOT][iTS]);
+          }
+        }
+      }
+      PFRecHitHBHE_HBHEChannelInfoIdx[index] = index;
+      nHBHEChannelInfo++;
     }
   }
 
@@ -668,6 +1097,27 @@ void PackedCandidateExtTableProducer::produce(edm::Event &iEvent, const edm::Eve
     const std::vector<std::pair<DetId, float> >& clusterHits = clusterRef->hitsAndFractions();
     PFClusterECAL_nhits.push_back(clusterHits.size());
     nPFClusterECAL++;
+  }
+
+  //==================================================
+  // Make branches for PFCand <-> PFCluster mapping
+  //==================================================
+  unsigned int      nPFCandToPFClusterECAL=0;
+  std::vector<int>  PFCandToPFClusterECAL_PFCandIdx;
+  std::vector<int>  PFCandToPFClusterECAL_PFClusterIdx;
+
+  for (size_t i = 0; i < MappingInfo_PFCand_To_PFClusterECAL.size(); ++i) {
+    int PFCandIdx = MappingInfo_PFCand_To_PFClusterECAL[i].first;
+    int PFClusterKey = MappingInfo_PFCand_To_PFClusterECAL[i].second;
+    //
+    int PFClusterIdx = -1;
+    auto it = std::find(PFClusterECAL_key.begin(), PFClusterECAL_key.end(), PFClusterKey);
+    if (it != PFClusterECAL_key.end()) {
+      PFClusterIdx = std::distance(PFClusterECAL_key.begin(), it);
+    }
+    PFCandToPFClusterECAL_PFCandIdx.push_back(PFCandIdx);
+    PFCandToPFClusterECAL_PFClusterIdx.push_back(PFClusterIdx);
+    nPFCandToPFClusterECAL++;
   }
 
   //==========================================
@@ -726,6 +1176,14 @@ void PackedCandidateExtTableProducer::produce(edm::Event &iEvent, const edm::Eve
   candTable->addColumn<float>("hcalDepthEnergyFraction6", PFCand_hcalDepthEnergyFraction6, "hcalDepthEnergyFraction6", -1);
   candTable->addColumn<float>("hcalDepthEnergyFraction7", PFCand_hcalDepthEnergyFraction7, "hcalDepthEnergyFraction7", -1);
 
+  candTable->addColumn<float>("ptRECO",   PFCand_ptRECO,   "ptRECO",   -1);
+  candTable->addColumn<float>("etaRECO",  PFCand_etaRECO,  "etaRECO",  -1);
+  candTable->addColumn<float>("phiRECO",  PFCand_phiRECO,  "phiRECO",  -1);
+  candTable->addColumn<float>("massRECO", PFCand_massRECO, "massRECO", -1);
+  candTable->addColumn<float>("energyRECO", PFCand_energyRECO, "energyRECO", -1);
+
+  candTable->addColumn<unsigned int>("birthId", PFCand_birthId, "birthId");
+
   candTable->addColumn<float>("ecalEnergy",    PFCand_ecalEnergy,    "ecalEnergy",    -1);
   candTable->addColumn<float>("rawEcalEnergy", PFCand_rawEcalEnergy, "rawEcalEnergy", -1);
   candTable->addColumn<float>("hcalEnergy",    PFCand_hcalEnergy,    "hcalEnergy",    -1);
@@ -765,17 +1223,89 @@ void PackedCandidateExtTableProducer::produce(edm::Event &iEvent, const edm::Eve
 
   //==========================================
   //
+  // Make PFCluster HBHE table
+  //
+  //==========================================
+  if (savePFClustersHBHE_){
+    auto pfClusterHBHETable = std::make_unique<nanoaod::FlatTable>(nPFClusterHBHE, name_PFClusterHBHE_, false, false);
+    pfClusterHBHETable->addColumn<float>("pt", PFClusterHBHE_pt,"pt",-1);
+    pfClusterHBHETable->addColumn<float>("energy", PFClusterHBHE_energy,"energy",-1);
+    pfClusterHBHETable->addColumn<float>("eta", PFClusterHBHE_eta,"eta",-1);
+    pfClusterHBHETable->addColumn<float>("phi", PFClusterHBHE_phi,"phi",-1);
+    pfClusterHBHETable->addColumn<int>("layer", PFClusterHBHE_layer,"layer");
+    pfClusterHBHETable->addColumn<int>("nhits", PFClusterHBHE_nhits,"nhits");
+    pfClusterHBHETable->addColumn<unsigned int>("seedhit_detId", PFClusterHBHE_seedhit_detId,"seedhit_detId");
+    iEvent.put(std::move(pfClusterHBHETable), name_PFClusterHBHE_);
+  }
+
+
+  //==========================================
+  //
   // Make PFRecHit HBHE table
   //
   //==========================================
   if (savePFRecHitsHBHE_){
     auto pfRecHitHBHETable = std::make_unique<nanoaod::FlatTable>(nPFRecHitHBHE, name_PFRecHitHBHE_,  false, false);
     pfRecHitHBHETable->addColumn<float>("energy", PFRecHitHBHE_energy,"energy",-1);
+    pfRecHitHBHETable->addColumn<float>("time", PFRecHitHBHE_time,"time",-1);
     pfRecHitHBHETable->addColumn<int>("ieta", PFRecHitHBHE_ieta,"ieta");
     pfRecHitHBHETable->addColumn<int>("iphi", PFRecHitHBHE_iphi,"iphi");
     pfRecHitHBHETable->addColumn<int>("depth", PFRecHitHBHE_depth,"depth");
+    pfRecHitHBHETable->addColumn<float>("pfCutThresh", PFRecHitHBHE_pfCutThresh,"pfCutThresh");
+    pfRecHitHBHETable->addColumn<float>("respCorr", PFRecHitHBHE_respCorr,"respCorr");
     pfRecHitHBHETable->addColumn<unsigned int>("detId", PFRecHitHBHE_detId,"detId");
+    pfRecHitHBHETable->addColumn<int>("HBHEChannelInfoIdx", PFRecHitHBHE_HBHEChannelInfoIdx,"HBHEChannelInfoIdx");
     iEvent.put(std::move(pfRecHitHBHETable),  name_PFRecHitHBHE_);
+
+    if (saveHBHEChannelInfo_){
+      auto HBHEChannelInfoTable = std::make_unique<nanoaod::FlatTable>(nHBHEChannelInfo, "HBHEChannelInfo",  false, false);
+      HBHEChannelInfoTable->addColumn<int>("ieta", hbhechan_ieta,"ieta");
+      HBHEChannelInfoTable->addColumn<int>("iphi", hbhechan_iphi,"iphi");
+      HBHEChannelInfoTable->addColumn<int>("depth", hbhechan_depth,"depth");
+      HBHEChannelInfoTable->addColumn<float>("fcByPE", hbhechan_fcByPE,"fcByPE");
+      HBHEChannelInfoTable->addColumn<float>("lambda", hbhechan_lambda,"lambda");
+      HBHEChannelInfoTable->addColumn<float>("noisecorr", hbhechan_noisecorr,"noisecorr");
+      for (int iTS=0; iTS < 8; iTS++){
+        HBHEChannelInfoTable->addColumn<float>(std::string("ts")+std::to_string(iTS)+std::string("RawCharge"),hbhechan_tsRawCharge[iTS],"tsRawCharge",-1);
+        HBHEChannelInfoTable->addColumn<float>(std::string("ts")+std::to_string(iTS)+std::string("Pedestal"), hbhechan_tsPedestal[iTS], "tsPedestal",-1);
+        HBHEChannelInfoTable->addColumn<float>(std::string("ts")+std::to_string(iTS)+std::string("DFcPerADC"),hbhechan_tsDFcPerADC[iTS],"tsDFcPerADC",-1);
+      }
+      if(saveMAHIInfo_){
+        HBHEChannelInfoTable->addColumn<int>  ("mahi_nSamples",mahi_nSamples,"mahi_nSamples");
+        HBHEChannelInfoTable->addColumn<int>  ("mahi_soi",mahi_soi,"mahi_soi");
+        HBHEChannelInfoTable->addColumn<float>("mahi_inTimeConst",mahi_inTimeConst,"mahi_inTimeConst",-1);
+        HBHEChannelInfoTable->addColumn<float>("mahi_inDarkCurrent",mahi_inDarkCurrent,"mahi_inDarkCurrent",-1);
+        HBHEChannelInfoTable->addColumn<float>("mahi_inPedAvg",mahi_inPedAvg,"mahi_inPedAvg",-1);
+        HBHEChannelInfoTable->addColumn<float>("mahi_inGain",mahi_inGain,"mahi_inGain",-1);
+        HBHEChannelInfoTable->addColumn<bool> ("mahi_use8",mahi_use8,"mahi_use8");
+        HBHEChannelInfoTable->addColumn<float>("mahi_chiSq",mahi_chiSq,"mahi_chiSq",-1);
+        HBHEChannelInfoTable->addColumn<float>("mahi_arrivalTime",mahi_arrivalTime,"mahi_arrivalTime",-1);
+        HBHEChannelInfoTable->addColumn<float>("mahi_mahiEnergy",mahi_mahiEnergy,"mahi_mahiEnergy",-1);
+        HBHEChannelInfoTable->addColumn<float>("mahi_ootEnergy0",mahi_ootEnergy0,"mahi_ootEnergy0",-1);
+        HBHEChannelInfoTable->addColumn<float>("mahi_ootEnergy1",mahi_ootEnergy1,"mahi_ootEnergy1",-1);
+        HBHEChannelInfoTable->addColumn<float>("mahi_ootEnergy2",mahi_ootEnergy2,"mahi_ootEnergy2",-1);
+        HBHEChannelInfoTable->addColumn<float>("mahi_ootEnergy3",mahi_ootEnergy3,"mahi_ootEnergy3",-1);
+        HBHEChannelInfoTable->addColumn<float>("mahi_ootEnergy4",mahi_ootEnergy4,"mahi_ootEnergy4",-1);
+        HBHEChannelInfoTable->addColumn<float>("mahi_ootEnergy5",mahi_ootEnergy5,"mahi_ootEnergy5",-1);
+        HBHEChannelInfoTable->addColumn<float>("mahi_ootEnergy6",mahi_ootEnergy6,"mahi_ootEnergy6",-1);
+        HBHEChannelInfoTable->addColumn<float>("mahi_pedEnergy",mahi_pedEnergy,"mahi_pedEnergy",-1);
+        for (int iTS=0; iTS < 8; iTS++){
+          HBHEChannelInfoTable->addColumn<float>(std::string("mahi_count")+std::to_string(iTS),       mahi_count[iTS],"mahi_count",-1);
+          HBHEChannelInfoTable->addColumn<float>(std::string("mahi_inputTS")+std::to_string(iTS),     mahi_inputTS[iTS],"mahi_inputTS",-1);
+          HBHEChannelInfoTable->addColumn<int>  (std::string("mahi_inputTDC")+std::to_string(iTS),    mahi_inputTDC[iTS],"mahi_inputTDC");
+          HBHEChannelInfoTable->addColumn<float>(std::string("mahi_itPulse")+std::to_string(iTS),     mahi_itPulse[iTS],"mahi_itPulse",-1);
+          HBHEChannelInfoTable->addColumn<float>(std::string("mahi_inNoiseADC")+std::to_string(iTS),  mahi_inNoiseADC[iTS],"mahi_inNoiseADC",-1);
+          HBHEChannelInfoTable->addColumn<float>(std::string("mahi_inNoiseDC")+std::to_string(iTS),   mahi_inNoiseDC[iTS],"mahi_inNoiseDC",-1);
+          HBHEChannelInfoTable->addColumn<float>(std::string("mahi_inNoisePhoto")+std::to_string(iTS),mahi_inNoisePhoto[iTS],"mahi_inNoisePhoto",-1);
+          HBHEChannelInfoTable->addColumn<float>(std::string("mahi_inPedestal")+std::to_string(iTS),  mahi_inPedestal[iTS],"mahi_inPedestal",-1);
+          HBHEChannelInfoTable->addColumn<float>(std::string("mahi_totalUCNoise")+std::to_string(iTS),mahi_totalUCNoise[iTS],"mahi_totalUCNoise",-1);
+          for (int iOOT=0; iOOT < 7; iOOT++){
+            HBHEChannelInfoTable->addColumn<float>(std::string("mahi_ootPulse")+std::to_string(iTS)+std::to_string(iOOT),mahi_ootPulse[iTS][iOOT],"mahi_ootPulse",-1);
+          }
+        }
+      }
+      iEvent.put(std::move(HBHEChannelInfoTable),"HBHEChannelInfo");
+    }
   }
 
   //========================================================
@@ -792,6 +1322,18 @@ void PackedCandidateExtTableProducer::produce(edm::Event &iEvent, const edm::Eve
 
   //========================================================
   //
+  // Make PFCluster HCAL <-> PFCluster HBHE mapping table
+  //
+  //========================================================
+  // if (savePFClustersHCAL_ && savePFClustersHBHE_){
+  //   auto pfClusterHCALToClusterHBHETable = std::make_unique<nanoaod::FlatTable>(nPFClusterHCALToPFClusterHBHBE, name_PFClusterHCALToPFClusterHBHE_,  false, false);
+  //   pfClusterHCALToClusterHBHETable->addColumn<int>("PFCandIdx",        PFClusterHCALToPFClusterHBHE_PFClusterHCALIdx,"PFClusterHCALIdx");
+  //   pfClusterHCALToClusterHBHETable->addColumn<int>("PFClusterHBHEIdx", PFClusterHCALToPFClusterHBHE_PFClusterHBHEIdx,"PFClusterHBHEIdx");
+  //   iEvent.put(std::move(pfClusterHCALToClusterHBHETable),  name_PFClusterHCALToPFClusterHBHE_);
+  // }
+
+  //========================================================
+  //
   // Make PFClusterHCAL <-> PFRecHitHBHE mapping table
   //
   //========================================================
@@ -801,6 +1343,19 @@ void PackedCandidateExtTableProducer::produce(edm::Event &iEvent, const edm::Eve
     pfClusterHCALToRecHitHBHETable->addColumn<int>("PFRecHitHBHEIdx",  PFClusterHCALToPFRecHitHBHBE_PFRecHitHBHEIdx,"PFRecHitHBHEIdx");
     pfClusterHCALToRecHitHBHETable->addColumn<float>("fraction",       PFClusterHCALToPFRecHitHBHBE_fraction,"fraction",-1);
     iEvent.put(std::move(pfClusterHCALToRecHitHBHETable),  name_PFClusterHCALToPFRecHitHBHE_);
+  }
+
+  //========================================================
+  //
+  // Make PFClusterHBHE <-> PFRecHitHBHE mapping table
+  //
+  //========================================================
+  if (savePFClustersHBHE_ && savePFRecHitsHBHE_){
+    auto pfClusterHBHEToRecHitHBHETable = std::make_unique<nanoaod::FlatTable>(nPFClusterHBHEToPFRecHitHBHBE, name_PFClusterHBHEToPFRecHitHBHE_,  false, false);
+    pfClusterHBHEToRecHitHBHETable->addColumn<int>("PFClusterHBHEIdx", PFClusterHBHEToPFRecHitHBHBE_PFClusterHBHEIdx,"PFClusterHBHEIdx");
+    pfClusterHBHEToRecHitHBHETable->addColumn<int>("PFRecHitHBHEIdx",  PFClusterHBHEToPFRecHitHBHBE_PFRecHitHBHEIdx,"PFRecHitHBHEIdx");
+    pfClusterHBHEToRecHitHBHETable->addColumn<float>("fraction",       PFClusterHBHEToPFRecHitHBHBE_fraction,"fraction",-1);
+    iEvent.put(std::move(pfClusterHBHEToRecHitHBHETable),  name_PFClusterHBHEToPFRecHitHBHE_);
   }
 
   //========================================================
@@ -839,6 +1394,18 @@ void PackedCandidateExtTableProducer::produce(edm::Event &iEvent, const edm::Eve
     iEvent.put(std::move(pfClusterECALTable), name_PFClusterECAL_);
   }
 
+  //========================================================
+  //
+  // Make PFCand <-> PFCluster ECAL mapping table
+  //
+  //========================================================
+  if (savePFClustersECAL_){
+    auto pfCandToClusterECALTable = std::make_unique<nanoaod::FlatTable>(nPFCandToPFClusterECAL, name_PFCandToPFClusterECAL_,  false, false);
+    pfCandToClusterECALTable->addColumn<int>("PFCandIdx",        PFCandToPFClusterECAL_PFCandIdx,   "PFCandIdx");
+    pfCandToClusterECALTable->addColumn<int>("PFClusterECALIdx", PFCandToPFClusterECAL_PFClusterIdx,"PFClusterECALIdx");
+    iEvent.put(std::move(pfCandToClusterECALTable),  name_PFCandToPFClusterECAL_);
+  }
+
   //==========================================
   //
   // Make PFCluster PS table
@@ -872,17 +1439,40 @@ void PackedCandidateExtTableProducer::fillDescriptions(edm::ConfigurationDescrip
   desc.add<edm::InputTag>("srcMuons", edm::InputTag("finalMuons"));
   desc.add<edm::InputTag>("packedPFCandidates", edm::InputTag("packedPFCandidates"));
   desc.add<edm::InputTag>("PFClustersHCAL", edm::InputTag("particleFlowClusterHCAL"));
+  desc.add<edm::InputTag>("PFClustersHBHE", edm::InputTag("particleFlowClusterHBHE"));
   desc.add<edm::InputTag>("PFRecHitsHBHE", edm::InputTag("particleFlowRecHitHBHE"));
   desc.add<edm::InputTag>("PFClustersECAL", edm::InputTag("particleFlowClusterECAL"));
   desc.add<edm::InputTag>("PFClustersPS", edm::InputTag("particleFlowClusterPS"));
+  desc.add<edm::InputTag>("hbheChannelInfo", edm::InputTag("hbheprereco"));
   desc.add<bool>("savePFClustersHCAL", true);
+  desc.add<bool>("saveAllPFClustersHCAL", false);
+  desc.add<bool>("savePFClustersHBHE", true);
   desc.add<bool>("savePFRecHitsHBHE", true);
-  desc.add<bool>("savePFClustersECAL", true);
+  desc.add<bool>("saveAllPFRecHitsHBHE", false);
+  desc.add<bool>("saveHBHEChannelInfo", true);
+  desc.add<bool>("saveMAHIInfo", false);
+  desc.add<bool>("savePFClustersECAL", false);
   desc.add<bool>("savePFClustersPS", true);
   desc.add<bool>("matchMuonsWithPFRecHitsHBHE", false);
   desc.add<std::string>("name", "PFCand");
   desc.add<bool>("saveFromPVvertexRef", false);
   desc.add<int>("weightPrecision", -1);
+
+  desc.add<bool>("mahi_dynamicPed",false);
+  desc.add<double>("mahi_ts4Thresh",0.);
+  desc.add<double>("mahi_chiSqSwitch",0.);
+  desc.add<bool>("mahi_applyTimeSlew",false);
+  desc.add<bool>("mahi_calculateArrivalTime",false);
+  desc.add<int>("mahi_timeAlgo",0);
+  desc.add<double>("mahi_thEnergeticPulses",0.);
+  desc.add<double>("mahi_meanTime",0.);
+  desc.add<double>("mahi_timeSigmaHPD",0.);
+  desc.add<double>("mahi_timeSigmaSiPM",0.);
+  desc.add<std::vector<int>>("mahi_activeBXs",std::vector<int>());
+  desc.add<int>("mahi_nMaxItersMin",0);
+  desc.add<int>("mahi_nMaxItersNNLS",0);
+  desc.add<double>("mahi_deltaChiSqThresh",0.);
+  desc.add<double>("mahi_nnlsThresh",0.);
 
   std::vector<edm::InputTag> emptyVInputTags;
   desc.add<std::vector<edm::InputTag>>("srcWeightsV",emptyVInputTags);

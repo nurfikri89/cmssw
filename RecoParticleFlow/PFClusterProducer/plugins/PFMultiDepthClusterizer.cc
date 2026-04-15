@@ -284,12 +284,15 @@ void PFMultiDepthClusterizer::expandCluster(reco::PFCluster& cluster,
       if (!mask[link.from()]) {
         absorbCluster(cluster, clusters[link.from()]);
         mask[link.from()] = true;
+        // cluster.addParentClusterKeys(point);
+        // cluster.addParentClusterKeys(link.from());
       }
-
       if (!mask[link.to()]) {
         absorbCluster(cluster, clusters[link.to()]);
         mask[link.to()] = true;
         expandCluster(cluster, link.to(), mask, clusters, links);
+        // cluster.addParentClusterKeys(point);
+        // cluster.addParentClusterKeys(link.to());
       }
     }
     if (link.to() == point) {
@@ -297,12 +300,15 @@ void PFMultiDepthClusterizer::expandCluster(reco::PFCluster& cluster,
       if (!mask[link.to()]) {
         absorbCluster(cluster, clusters[link.to()]);
         mask[link.to()] = true;
+        // cluster.addParentClusterKeys(point);
+        // cluster.addParentClusterKeys(link.to());
       }
-
       if (!mask[link.from()]) {
         absorbCluster(cluster, clusters[link.from()]);
         mask[link.from()] = true;
         expandCluster(cluster, link.from(), mask, clusters, links);
+        // cluster.addParentClusterKeys(point);
+        // cluster.addParentClusterKeys(link.from());
       }
     }
   }
