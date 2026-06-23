@@ -10,6 +10,8 @@ from RecoParticleFlow.PFClusterProducer.particleFlowRecHitHF_cfi import *
 from RecoParticleFlow.PFClusterProducer.particleFlowRecHitHO_cfi import *
 from RecoParticleFlow.PFClusterProducer.particleFlowRecHitPS_cfi import *
 
+from RecoParticleFlow.PFClusterProducer.particleFlowRecHitHBHEFilters_cfi import *
+
 from RecoParticleFlow.PFClusterProducer.particleFlowClusterECALUncorrected_cfi import *
 from RecoParticleFlow.PFClusterProducer.particleFlowClusterECAL_cff import *
 
@@ -36,6 +38,11 @@ pfClusteringHBHEHFTask = cms.Task(particleFlowRecHitHBHE,
                                   particleFlowClusterHBHE,
                                   particleFlowClusterHF,
                                   particleFlowClusterHCAL)
+
+#TEMP:FIKRI
+pfClusteringHBHEHFTask.add(particleFlowRecHitHBHEAbsIEta1To26)
+pfClusteringHBHEHFTask.add(particleFlowRecHitHBHEAbsIEta27To29)
+
 pfClusteringHBHEHF = cms.Sequence(pfClusteringHBHEHFTask)
 
 pfClusteringHBHEHFOnlyTask = cms.Task(particleFlowRecHitHBHEOnly,
