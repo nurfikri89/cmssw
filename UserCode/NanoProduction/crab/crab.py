@@ -17,7 +17,7 @@ crab_config = config()
 #
 # Set request name prefx
 #
-reqNamePrefix = "NanoV14UParTv2"
+reqNamePrefix = "NanoV14UParTv2_SkimTest"
 #
 # Set version number (CHECK)
 #
@@ -31,7 +31,7 @@ prodversion=""
 # Change this PATH where the crab directories are stored
 # Example: config.General.workArea = '/afs/cern.ch/work/n/nbinnorj/private/crab_projects/'
 #
-crab_config.General.workArea = '/afs/cern.ch/work/n/nbinnorj/private/crab_projects_upart_nanov14/'
+crab_config.General.workArea = '/afs/cern.ch/work/n/nbinnorj/private/crab_projects_upart_nanov14_skim/'
 #
 crab_config.JobType.pluginName = 'Analysis'
 
@@ -81,10 +81,10 @@ crab_config.Site.whitelist = whitelist_sites
 # -  Loop over list of samples. Send to Grid
 #
 ############################################################
-runTime_data = 300
+runTime_data = 420
 runTime_mc   = 420
-fileSplit_data = 1
-fileSplit_mc   = 1
+fileSplit_data = 5
+fileSplit_mc   = 5
 
 import sys
 import helpers
@@ -118,6 +118,9 @@ for i, dataset in enumerate(samplelist):
   #
   crab_config.Data.splitting    = 'FileBased'
   #
+  #
+  crab_config.JobType.maxMemoryMB = 4000
+  #
   # Check if Data or MC and use the appropriaet psetName
   #
   isData = helpers.IsSampleData(dataset)
@@ -136,11 +139,11 @@ for i, dataset in enumerate(samplelist):
     primaryName   = dataset.split('/')[1]
     secondaryName = helpers.TrimSecondaryNameForData(dataset)
   else:
-    if "RunIII2024Summer24MiniAODv4" in dataset:
-      crab_config.JobType.psetName  = 'configs/Prod_MC_2024Summer24NanoAOD_UParTv2.py'
-
+    if "RunIII2024Summer24MiniAOD" in dataset:
+      crab_config.JobType.psetName  = 'configs/Prod_MC_2024Summer24NanoAOD_SkimHLTDiMuon_UParTv2.py'
     crab_config.JobType.maxJobRuntimeMin = runTime_mc
     crab_config.Data.unitsPerJob = fileSplit_mc
+
     #
     # Have to make unique requestName.
     #
